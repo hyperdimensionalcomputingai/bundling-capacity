@@ -1,0 +1,51 @@
+item_id,position,factor_id,factor_name,key_direction,statement
+Q01,1,1,Extraversion,+,Am the life of the party.
+Q02,2,2,Agreeableness,-,Feel little concern for others.
+Q03,3,3,Conscientiousness,+,Am always prepared.
+Q04,4,4,Emotional Stability,-,Get stressed out easily.
+Q05,5,5,Intellect/Imagination,+,Have a rich vocabulary.
+Q06,6,1,Extraversion,-,Don't talk a lot.
+Q07,7,2,Agreeableness,+,Am interested in people.
+Q08,8,3,Conscientiousness,-,Leave my belongings around.
+Q09,9,4,Emotional Stability,+,Am relaxed most of the time.
+Q10,10,5,Intellect/Imagination,-,Have difficulty understanding abstract ideas.
+Q11,11,1,Extraversion,+,Feel comfortable around people.
+Q12,12,2,Agreeableness,-,Insult people.
+Q13,13,3,Conscientiousness,+,Pay attention to details.
+Q14,14,4,Emotional Stability,-,Worry about things.
+Q15,15,5,Intellect/Imagination,+,Have a vivid imagination.
+Q16,16,1,Extraversion,-,Keep in the background.
+Q17,17,2,Agreeableness,+,Sympathize with others' feelings.
+Q18,18,3,Conscientiousness,-,Make a mess of things.
+Q19,19,4,Emotional Stability,+,Seldom feel blue.
+Q20,20,5,Intellect/Imagination,-,Am not interested in abstract ideas.
+Q21,21,1,Extraversion,+,Start conversations.
+Q22,22,2,Agreeableness,-,Am not interested in other people's problems.
+Q23,23,3,Conscientiousness,+,Get chores done right away.
+Q24,24,4,Emotional Stability,-,Am easily disturbed.
+Q25,25,5,Intellect/Imagination,+,Have excellent ideas.
+Q26,26,1,Extraversion,-,Have little to say.
+Q27,27,2,Agreeableness,+,Have a soft heart.
+Q28,28,3,Conscientiousness,-,Often forget to put things back in their proper place.
+Q29,29,4,Emotional Stability,-,Get upset easily.
+Q30,30,5,Intellect/Imagination,-,Do not have a good imagination.
+Q31,31,1,Extraversion,+,Talk to a lot of different people at parties.
+Q32,32,2,Agreeableness,-,Am not really interested in others.
+Q33,33,3,Conscientiousness,+,Like order.
+Q34,34,4,Emotional Stability,-,Change my mood a lot.
+Q35,35,5,Intellect/Imagination,+,Am quick to understand things.
+Q36,36,1,Extraversion,-,Don't like to draw attention to myself.
+Q37,37,2,Agreeableness,+,Take time out for others.
+Q38,38,3,Conscientiousness,-,Shirk my duties.
+Q39,39,4,Emotional Stability,-,Have frequent mood swings.
+Q40,40,5,Intellect/Imagination,+,Use difficult words.
+Q41,41,1,Extraversion,+,Don't mind being the center of attention.
+Q42,42,2,Agreeableness,+,Feel others' emotions.
+Q43,43,3,Conscientiousness,+,Follow a schedule.
+Q44,44,4,Emotional Stability,-,Get irritated easily.
+Q45,45,5,Intellect/Imagination,+,Spend time reflecting on things.
+Q46,46,1,Extraversion,-,Am quiet around strangers.
+Q47,47,2,Agreeableness,+,Make people feel at ease.
+Q48,48,3,Conscientiousness,+,Am exacting in my work.
+Q49,49,4,Emotional Stability,-,Often feel blue.
+Q50,50,5,Intellect/Imagination,+,Am full of ideas.

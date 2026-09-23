@@ -1,0 +1,14 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Reproducible generated database; keep compact summaries and figures shareable.
+results/**/experiment.lancedb/
+.DS_Store
