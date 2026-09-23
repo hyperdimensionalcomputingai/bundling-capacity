@@ -1,0 +1,42 @@
+{
+  "design": "independent MAP item keys, one shared TorchHD ordered five-level codebook; unthresholded sum",
+  "dimensions": [
+    512,
+    2048,
+    4096,
+    8192
+  ],
+  "widths": [
+    5,
+    10,
+    20,
+    30,
+    40,
+    50
+  ],
+  "seeds": [
+    11,
+    23,
+    37,
+    53,
+    71
+  ],
+  "source_sha256": {
+    "items.csv": "805b2c7356926abe42242cef058d73d16e66e08d0d1e7acc166a0bb23a1b9b7f",
+    "profiles.csv": "1dad152cb511ff16b0d491530c98d850976370b72bd2f2a435deb9e58a3cb0d6",
+    "responses.csv": "0831c0fb19f9b82814fcda208a568632dbd8c7c346f043f0b85b67e9612ab55d"
+  },
+  "scoring_key": "IPIP Big-Five Factor Markers, 50-item sample, accessed 2026-09-23",
+  "question_seed_formula": "100 * seed + 5",
+  "level_seed_formula": "100 * seed + 4",
+  "torchhd_version": "5.8.4",
+  "lancedb_version": "0.37.1",
+  "polars_version": "1.44.1",
+  "pyarrow_version": "25.0.1",
+  "torch_version": "2.13.0",
+  "storage_dtype": "float16",
+  "compute_dtype": "float32",
+  "cleanup": "Stored answer vectors, exact five-way TorchHD cosine; three filtered flat LanceDB searches per seed/dimension/width agree in ordering",
+  "respondents": 31,
+  "synthetic_profiles": true
+}
