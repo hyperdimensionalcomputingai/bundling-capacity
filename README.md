@@ -1,10 +1,19 @@
-# How many answers fit in a MAP bundle?
+# Bundling capacity: inside and outside a MAP bundle
 
-This repository measures what happens as 5 to 50 scored questionnaire answers are packed into one additive MAP hypervector. It uses independent vectors for item positions and one shared ordered five-level answer scale.
+A MAP hypervector bundle is a sum of bound facts. This repository tests that sum from two directions.
 
-- [Research-facing report and figures](REPORT.md)
-- [Experiment design](QA_ENCODING_EXPERIMENT_PLAN.md)
-- [Run and measurement details](src/qa-encoding/README.md)
-- [Fixed synthetic questionnaire data](data/qa-encoding/README.md)
+| | **Inside the bundle** | **Outside the bundle** |
+| --- | --- | --- |
+| Question | How many facts can one bundle hold before we can't read a fact back? | Once a record is a bundle, can we still find it, and only it, among a million others, even when fields are missing? |
+| Pressure | Crowding within one vector: every added fact is noise for the others | Crowding among vectors: every added candidate is another chance to score high by accident, and missing fields change what "alike" means |
+| Workload | One person's scored answers to 5–50 IPIP questionnaire items | 920,000 directory-style PERSON records: age band, job, region and three interests |
+| Encoder | Item keys ⊙ five ordered answer levels, unthresholded sum | Role ⊙ value facts, unthresholded sum, L2-normalized; ordinal age levels |
+| Measures | Answer cleanup, whole-profile geometry, similarity as bundles grow | Chance similarity among 920,000 candidates across D and N; what a missing field and a null spelling do to one comparison; one 30%-missing retrieval check; IVF_PQ recall loss |
+| Report | [src/qa-encoding/REPORT.md](src/qa-encoding/REPORT.md) | [src/scale-missingness/REPORT.md](src/scale-missingness/REPORT.md) |
+| Code | [`src/qa-encoding`](src/qa-encoding/README.md) | [`src/scale-missingness`](src/scale-missingness/README.md) · [methodology](src/scale-missingness/METHODOLOGY.md) |
+| Data | [`data/qa-encoding`](data/qa-encoding/README.md), 31 fixed synthetic profiles | [`data/scale-missingness`](data/scale-missingness/README.md), controlled factorial fixture |
+| Linear | HYP-84 | HYP-83 |
 
-The original answer list remains the exact record. Bundle readout and profile similarity are measured properties of this encoder on a fixed synthetic fixture.
+The two studies use **different encoders and workloads**, so their accuracy numbers should not be compared as if one encoder produced both. Both fixtures are synthetic. The original records stay the exact source of truth; bundle readout and similarity are measured properties of each encoder on its fixture, not general capacity limits of a hyperspace.
+
+Each study has its own locked environment under `src/<study>/`. See each README for the reproduction commands.

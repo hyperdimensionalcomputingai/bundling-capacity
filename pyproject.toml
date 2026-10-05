@@ -1,7 +1,7 @@
 [project]
 name = "bundling-capacity"
 version = "0.1.0"
-description = "Ordered MAP questionnaire bundle capacity experiment"
+description = "MAP bundle capacity experiments: inside one bundle (questionnaire readout) and outside it (million-record similarity and missingness)"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []

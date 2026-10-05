@@ -20,7 +20,7 @@ The chart shows both exact recovery and **average rating error**: the average nu
 
 We used nested bundles of 5, 10, 20, 30, 40, and 50 items; the figure averages 31 fixed profiles over five MAP seeds, with shading showing the seed range. The accuracy axis starts at 75% to reveal differences near the top.
 
-![Exact answer recovery falls with bundle width at 512 dimensions; average rating error grows, while wider bundles stay near zero error](results/qa-encoding/recovery.png)
+![Exact answer recovery falls with bundle width at 512 dimensions; average rating error grows, while wider bundles stay near zero error](../../results/qa-encoding/recovery.png)
 
 At 512 dimensions, crowding mainly costs us **precision**. With five facts, cleanup reads every answer correctly. With 50, it reads **79.4%** exactly, but **96.1%** are either correct or just one point away. The bundle often keeps the rough rating even when it can no longer tell us the exact one.
 
@@ -28,13 +28,13 @@ More dimensions protect the exact answer. With 50 facts, recovery rises to **98.
 
 ## The profile relationships survive better
 
-The second job is finding similar complete profiles: if two profiles have similar answers to the **same items**, do their bundled vectors end up close together? This comparison uses the whole bundled vectors directly; it never has to unbind an item or make a five-way cleanup decision. We compared bundle similarity with the mean difference between matching answers and with the similarity predicted by the five level vectors before bundling. We then checked both the ranking of all profile pairs and each profile's three nearest neighbors.
+The second job is finding similar complete profiles: if two profiles have similar answers to the **same items**, do their bundled vectors end up close together? This comparison uses the whole bundled vectors directly; it never has to unbind an item or make a five-way cleanup decision. We compared bundle similarity with the mean difference between matching answers and with the similarity predicted by the five level vectors before bundling. We then checked both the ranking of all profile pairs and each profile's three nearest neighbours.
 
-![Profile-pair rank correlation and three-neighbor overlap versus facts in the bundle, against response-distance and ideal-level references](results/qa-encoding/profile_geometry.png)
+![Profile-pair rank correlation and three-neighbour overlap versus facts in the bundle, against response-distance and ideal-level references](../../results/qa-encoding/profile_geometry.png)
 
-At 50 facts and 512 dimensions, the bundles recover 79.4% of individual answers, yet their ranking of profile pairs agrees strongly with the original answer lists (Spearman **0.970**). They retain **86%** of the three nearest neighbors. That gap between strong overall ranking and imperfect nearest-neighbor overlap is useful to see: a map can get the broad layout right while swapping a few close candidates. At 2,048 dimensions, three-neighbor overlap reaches **93.5%**; at 8,192, **96.6%**. Choosing three neighbors at random from the other 30 would overlap by about 10%.
+At 50 facts and 512 dimensions, the bundles recover 79.4% of individual answers, yet their ranking of profile pairs agrees strongly with the original answer lists (Spearman **0.970**). They retain **86%** of the three nearest neighbours. That gap between strong overall ranking and imperfect nearest-neighbour overlap is useful to see: a map can get the broad layout right while swapping a few close candidates. At 2,048 dimensions, three-neighbour overlap reaches **93.5%**; at 8,192, **96.6%**. Choosing three neighbours at random from the other 30 would overlap by about 10%.
 
-Here's the surprising part: adding facts can make cleanup harder while improving whole-profile comparison. At 512 dimensions, exact answer recovery falls from 100% at five facts to 79.4% at 50, while three-neighbor overlap rises from about 80% to 86% against the corresponding answer lists. Cleanup has to decide which clean level is closest to one noisy item. Similarity search can use the fuller pattern of all the facts at once. The effect is clearer at wider dimensions, where the extra facts add profile information with little loss of exact readout.
+Here's the surprising part: adding facts can make cleanup harder while improving whole-profile comparison. At 512 dimensions, exact answer recovery falls from 100% at five facts to 79.4% at 50, while three-neighbour overlap rises from about 80% to 86% against the corresponding answer lists. Cleanup has to decide which clean level is closest to one noisy item. Similarity search can use the fuller pattern of all the facts at once. The effect is clearer at wider dimensions, where the extra facts add profile information with little loss of exact readout.
 
 ## Does similarity fade as bundles grow?
 
@@ -42,7 +42,7 @@ Imagine comparing two patients whose questionnaire answers are mostly alike. As 
 
 If bundling preserves similarity, the 20% pairs should keep about the same cosine as the bundle grows and remain closer than the 60% pairs. The shared five-level answer codebook gives an ideal before-bundling comparison: if that stays flat while bundle cosine falls, packing is diluting the similarity signal. The figure combines five MAP seeds; shaded bands show where the middle 90% of the pair measurements fall.
 
-![Whole-bundle cosine stays near 0.95 for 20% one-step changes and near 0.85 for 60% one-step changes from 5 to 50 facts](results/qa-encoding/perturbation_similarity.png)
+![Whole-bundle cosine stays near 0.95 for 20% one-step changes and near 0.85 for 60% one-step changes from 5 to 50 facts](../../results/qa-encoding/perturbation_similarity.png)
 
 The 20% pairs stay at about **0.95 cosine** across all five widths, almost exactly matching their ideal answer-level similarity. The 60% pairs stay around **0.85**. There is no visible collapse of the similar-profile signal by 50 facts at 4,096 dimensions. Adding more matched answers preserves the *proportion* of small changes in the whole-vector comparison, even though reading any one answer from a crowded bundle is a different task.
 
@@ -54,7 +54,7 @@ Imagine a research tool looking for respondents with similar answer patterns. It
 
 These 31 synthetic profiles come from five factor anchors. The bundle widths also follow fixed questionnaire prefixes, so more facts and different item content arrive together. A next study with varied respondents and item subsets could test similarity between naturally close people, while a margin-based exact-record fallback could measure how often item cleanup needs help.
 
-The [saved measurements and reproducibility notes](src/qa-encoding/README.md) include per-item errors, profile-pair comparisons, key overlap, level similarities, versions, and input hashes.
+The [saved measurements and reproducibility notes](README.md) include per-item errors, profile-pair comparisons, key overlap, level similarities, versions, and input hashes.
 
 ## What we learned
 

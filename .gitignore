@@ -12,3 +12,11 @@ wheels/
 # Reproducible generated database; keep compact summaries and figures shareable.
 results/**/experiment.lancedb/
 .DS_Store
+
+# scale-missingness: reproducible intermediates (the LanceDB store is ~4 GB).
+# Committed results are the per-query table, summaries, thresholds and figures.
+results/scale-missingness/experiment.lancedb/
+results/scale-missingness/store.json
+results/scale-missingness/histograms.parquet
+results/scale-missingness/exact_head.parquet
+results/scale-missingness/run.log

@@ -1,0 +1,245 @@
+{
+  "rule": "T = largest 1e-4 grid value with at most beta of the calibration panel's related pairs (S_content >= 2/3) against the first 100,000 candidates scoring below T; calibrated per (D, seed, condition) and held fixed across candidate counts",
+  "fixture_sha256": {
+    "signatures.parquet": "a4814cf12bfcfbbe064e8aa5aab1bfa8c77d0d231159d0439dbb9f8cb4f3d0ef",
+    "missingness.parquet": "b735cf8e179e5da7b41b48658a5eb816fca5a8aa02932fbc9fb641ec74838bcc",
+    "query_panels.parquet": "b020e7ef9cb6f32e62054d66cc6b3f83fe5aa3a04c96c82ecaf82c8bbcc276ee",
+    "pairwise_pairs.parquet": "066ace7a25b53517701a86104da243200f971c56deae67c1c60ab6018ca0f820"
+  },
+  "settings": {
+    "dimensions": [
+      512,
+      1024,
+      2048,
+      4096,
+      8192
+    ],
+    "seeds": [
+      11,
+      23,
+      37
+    ],
+    "prefixes": [
+      100,
+      1000,
+      10000,
+      100000,
+      920000
+    ],
+    "conditions": [
+      [
+        "complete",
+        "omit",
+        false,
+        [
+          512,
+          1024,
+          2048,
+          4096,
+          8192
+        ]
+      ],
+      [
+        "m30_omit",
+        "omit",
+        true,
+        [
+          2048
+        ]
+      ],
+      [
+        "m30_token",
+        "token",
+        true,
+        [
+          2048
+        ]
+      ]
+    ],
+    "calibration_candidates": 100000,
+    "related_cutoff": 0.6666666666666666,
+    "tiers": [
+      "unrelated_0",
+      "low_(0,1/3)",
+      "mid_[1/3,2/3)",
+      "related_[2/3,1]"
+    ],
+    "beta": 0.01,
+    "epsilon": 0.01,
+    "reference_threshold": 0.2157,
+    "top_k": 10,
+    "head": 100,
+    "histogram_bin": 0.0001,
+    "chunk": 8192
+  },
+  "thresholds": [
+    {
+      "dimension": 512,
+      "seed": 11,
+      "condition": "complete",
+      "threshold": 0.6166,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900811728650708
+    },
+    {
+      "dimension": 512,
+      "seed": 23,
+      "condition": "complete",
+      "threshold": 0.6207,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900190507744554
+    },
+    {
+      "dimension": 512,
+      "seed": 37,
+      "condition": "complete",
+      "threshold": 0.6205,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900604655015324
+    },
+    {
+      "dimension": 1024,
+      "seed": 11,
+      "condition": "complete",
+      "threshold": 0.6303,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9901432949556862
+    },
+    {
+      "dimension": 1024,
+      "seed": 23,
+      "condition": "complete",
+      "threshold": 0.6274,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900397581379938
+    },
+    {
+      "dimension": 1024,
+      "seed": 37,
+      "condition": "complete",
+      "threshold": 0.6328,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900397581379938
+    },
+    {
+      "dimension": 2048,
+      "seed": 11,
+      "condition": "complete",
+      "threshold": 0.6422,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9902675391369171
+    },
+    {
+      "dimension": 2048,
+      "seed": 11,
+      "condition": "m30_omit",
+      "threshold": 0.6532,
+      "calibration_related_pairs": 113037,
+      "calibration_recall": 0.990020966586162
+    },
+    {
+      "dimension": 2048,
+      "seed": 11,
+      "condition": "m30_token",
+      "threshold": 0.5741,
+      "calibration_related_pairs": 113037,
+      "calibration_recall": 0.9900651998903014
+    },
+    {
+      "dimension": 2048,
+      "seed": 23,
+      "condition": "complete",
+      "threshold": 0.6444,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900397581379938
+    },
+    {
+      "dimension": 2048,
+      "seed": 23,
+      "condition": "m30_omit",
+      "threshold": 0.6541,
+      "calibration_related_pairs": 113037,
+      "calibration_recall": 0.9901978998027194
+    },
+    {
+      "dimension": 2048,
+      "seed": 23,
+      "condition": "m30_token",
+      "threshold": 0.5784,
+      "calibration_related_pairs": 113037,
+      "calibration_recall": 0.9900121199253342
+    },
+    {
+      "dimension": 2048,
+      "seed": 37,
+      "condition": "complete",
+      "threshold": 0.6425,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900811728650708
+    },
+    {
+      "dimension": 2048,
+      "seed": 37,
+      "condition": "m30_omit",
+      "threshold": 0.6494,
+      "calibration_related_pairs": 113037,
+      "calibration_recall": 0.9901448198377523
+    },
+    {
+      "dimension": 2048,
+      "seed": 37,
+      "condition": "m30_token",
+      "threshold": 0.5728,
+      "calibration_related_pairs": 113037,
+      "calibration_recall": 0.9900121199253342
+    },
+    {
+      "dimension": 4096,
+      "seed": 11,
+      "condition": "complete",
+      "threshold": 0.6508,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9903089538639941
+    },
+    {
+      "dimension": 4096,
+      "seed": 23,
+      "condition": "complete",
+      "threshold": 0.6503,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900397581379938
+    },
+    {
+      "dimension": 4096,
+      "seed": 37,
+      "condition": "complete",
+      "threshold": 0.6503,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9900604655015324
+    },
+    {
+      "dimension": 8192,
+      "seed": 11,
+      "condition": "complete",
+      "threshold": 0.6571,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.990350368591071
+    },
+    {
+      "dimension": 8192,
+      "seed": 23,
+      "condition": "complete",
+      "threshold": 0.6546,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9901640023192247
+    },
+    {
+      "dimension": 8192,
+      "seed": 37,
+      "condition": "complete",
+      "threshold": 0.6543,
+      "calibration_related_pairs": 48292,
+      "calibration_recall": 0.9901847096827632
+    }
+  ]
+}
