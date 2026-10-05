@@ -451,6 +451,70 @@ def experiment4_build(summary: pl.DataFrame, out: Path):
     save(fig, out / "experiment4_build")
 
 
+INDEX_STYLE = (
+    ("unit_cosine", "IVF_PQ, cosine (unit vectors)", BLUE),
+    ("unit_dot", "IVF_PQ, dot (unit vectors)", ORANGE),
+    ("pivoted_dot", "IVF_PQ, dot (pivoted scaling)", AQUA),
+    ("unit_cosine_rq", "IVF_RQ, cosine (unit vectors)", YELLOW),
+)
+
+
+def experiment5_index(summary: pl.DataFrame, out: Path):
+    fig, axes = plt.subplots(1, 4, figsize=(15.6, 5.2), sharey=True)
+    fig.subplots_adjust(left=0.06, right=0.81, top=0.76, bottom=0.17, wspace=0.08)
+    header(
+        fig,
+        "Train the index with the search metric, and always refine",
+        "Recall@10 of LanceDB IVF indexes against exact search over the same vectors, "
+        "920,000 records with 30% of values missing",
+    )
+    for ax, refine in zip(axes, (None, 10, 50, 200)):
+        part = (
+            summary.filter(pl.col("refine_factor").is_null())
+            if refine is None
+            else summary.filter(pl.col("refine_factor") == refine)
+        )
+        for name, label, color in INDEX_STYLE:
+            rows = part.filter(pl.col("index") == name).sort("nprobes")
+            if rows.height == 0:
+                continue
+            ax.plot(
+                rows["nprobes"],
+                rows["recall_at_10"],
+                color=color,
+                marker="o",
+                markersize=6,
+                markeredgecolor="white",
+                markeredgewidth=0.8,
+                label=label,
+            )
+        ax.set_xscale("log")
+        ax.set_xticks([10, 20, 50, 100])
+        ax.set_xticklabels(["10", "20", "50", "100"])
+        ax.minorticks_off()
+        ax.axhline(1, color=MUTED, linestyle=(0, (4, 3)), linewidth=1.1)
+        ax.set_title(
+            "no refine" if refine is None else f"refine_factor {refine}",
+            loc="left",
+            fontsize=11,
+            pad=10,
+        )
+        ax.set_xlabel("nprobes (of 959)", labelpad=8)
+        ax.yaxis.set_major_formatter(PercentFormatter(1, decimals=0))
+        frame_axes(ax)
+    axes[0].set_ylabel("Recall@10 against exact search", labelpad=8)
+    handles, labels = axes[-1].get_legend_handles_labels()
+    fig.legend(
+        handles, labels, frameon=False, loc="center left", bbox_to_anchor=(0.815, 0.5), fontsize=9.5
+    )
+    footnote(
+        fig,
+        "D = 2,048, seed 11, float16 · 400 complete queries · each index trained and searched with "
+        "one metric · 128 PQ sub-vectors, 8-bit codes; RaBitQ 1 bit per dimension",
+    )
+    save(fig, out / "experiment5_index")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=person.OUT)
@@ -466,6 +530,8 @@ def main():
     experiment3_linkage(pl.read_csv(out / "experiment3_summary.csv"), out)
     if (out / "experiment4_summary.csv").exists():
         experiment4_build(pl.read_csv(out / "experiment4_summary.csv"), out)
+    if (out / "experiment5_summary.csv").exists():
+        experiment5_index(pl.read_csv(out / "experiment5_summary.csv"), out)
     hyp83_pairwise(pl.read_csv(out / "pairwise_summary.csv"), out)
     print(f"Saved figures in {out}")
 

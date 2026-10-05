@@ -1,6 +1,6 @@
 # Methodology: missing data and property normalization
 
-This document defines the encodings, the missing-value policies, and the four experiments of [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization). Settings are copied from the code (`person.py`, `policy.py`, `experiment1_weight.py` to `experiment4_build.py`); each experiment also writes its settings to `results/missingness/experiment<N>_config.json`. The findings are in the [report](REPORT.md).
+This document defines the encodings, the missing-value policies, and the five experiments of [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization). Settings are copied from the code (`person.py`, `policy.py`, `experiment1_weight.py` to `experiment5_index.py`); each experiment also writes its settings to `results/missingness/experiment<N>_config.json`. The findings are in the [report](REPORT.md).
 
 ## Records and inputs
 
@@ -122,6 +122,27 @@ Add-half smoothing keeps every level probability above zero.
 Query vectors are unit-length normalized bundles, or the sign bundle for sign_f16. The weighted search reuses cosine_f16 with a query whose property terms are scaled by the u-only agreement weights. Gower is applied as a reranker of cosine_f16's top 100, from the stored codes. Searches are flat (no index), so differences from the in-memory float32 ranking come from storage precision; LanceDB's dot distance is 1 − dot.
 
 **Measures.** Agreement with the exact policy's top 10 (the share of returned records whose exact score reaches the exact 10th best, ties included); precision@10 against hidden-truth relevance, next to the exact policy's own precision on the same pool; float16 against float32 (top-10 overlap, identical top-10 share, largest rank-aligned score difference); storage size; median latency of a single-threaded Python loop, for context only. A separate table measures the interests property's similarity under L2 and majority-sign normalization when a three-interest query meets a candidate that knows 1, 2 or 3 of them (seeds 1–20, 200 records each).
+
+## Experiment 5: Approximate search over normalized, partly-null vectors
+
+Experiment 4 searched exactly; the scale study tested IVF_PQ only on complete, unnormalized integer bundles. Experiment 5 builds LanceDB IVF indexes over all 920,000 records at 30% MCAR missingness (minus 663 with nothing known), with per-property L2 normalization, D = 2,048, seed 11, float16 storage, and the 400 complete evaluation queries.
+
+**One index per metric.** LanceDB fits an IVF index's k-means partitions and quantization codebooks under one distance type, and that type must match the one used to search. Each configuration therefore has its own table and index:
+
+| Index | Stored vectors | Index and search metric |
+| --- | --- | --- |
+| unit_cosine | unit length | IVF_PQ, cosine |
+| unit_dot | unit length | IVF_PQ, dot (documented as equivalent to cosine for unit vectors) |
+| pivoted_dot | scaled by Singhal's pivoted length (s = 1.2), so norms vary with coverage | IVF_PQ, dot |
+| unit_cosine_rq | unit length | IVF_RQ (RaBitQ), cosine |
+
+**Index settings.** LanceDB's documented defaults, with the two that size the index set explicitly so they match the scale study and can't drift between versions: num_partitions = round(√rows) = 959 and num_sub_vectors = D / 16 = 128. PQ codes are 8 bits; RaBitQ uses its default 1 bit per dimension; k-means runs 50 iterations on 256 × partitions sampled vectors.
+
+**Sweep.** nprobes ∈ {10, 20, 50, 100} × refine_factor ∈ {none, 10, 50, 200}.
+
+**Measures.** Recall@10 against exact flat search over the same stored float16 vectors under the same metric, tie-aware (a returned record counts when its exact score reaches the exact 10th best); precision@10 against hidden-truth relevance for every setting, for exact flat search over the same vectors, and for the exact policy with orthogonal atoms; the index's score error; median latency for context. Partly-null records often encode to identical vectors (54% of records at 30% missingness share their vector with another record), so ties are common and handled as above.
+
+**Normalizer check.** A cosine metric divides by each MAP vector's realized norm, which carries cross-term noise (a complete record's norm is 2.007 ± 0.029 at D = 2,048, against an ideal of 2). Dividing by √(populated fields) instead is exact. Flat search both ways is compared at six settings (`experiment5_normalizer.csv`).
 
 ## Uncertainty and scope
 

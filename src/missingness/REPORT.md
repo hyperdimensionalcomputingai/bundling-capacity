@@ -5,7 +5,7 @@ Records in the wild are incomplete. One person lists three interests, another li
 1. **How much each property counts.** Should a property's weight depend on how many values a record happens to list?
 2. **What a missing property costs.** Is "unknown" as bad as "wrong", neutral, or somewhere in between?
 
-We answer both with four experiments on one small, fully specified record type. Code and settings are in the [README](README.md) and [methodology](METHODOLOGY.md).
+We answer both with five experiments on one small, fully specified record type. Code and settings are in the [README](README.md) and [methodology](METHODOLOGY.md).
 
 ## The record and the two encodings
 
@@ -100,6 +100,29 @@ Experiments 2 and 3 scored the policies exactly. Here they're built from MAP vec
 
 **Takeaway:** store unit-length, L2-normalized property bundles in float16, search by cosine (equivalently, dot product), and put weights on the query.
 
+## 5. Approximate search: index for the metric, and refine
+
+Experiment 4 searched exactly. At 920,000 records with 30% of values missing, we built LanceDB IVF indexes over the normalized float16 vectors. LanceDB fits an index's partitions and quantization codebooks under one distance type, which must match the search, so each configuration has its own index: 959 partitions and 128 PQ sub-vectors (LanceDB's documented defaults), searched with the scale study's sweep plus `refine_factor` 200.
+
+![Recall@10 against exact search for four IVF indexes, by nprobes and refine_factor](../../results/missingness/experiment5_index.png)
+
+| 20 probes | No refine | refine 10 | refine 50 | refine 200 |
+| --- | --- | --- | --- | --- |
+| IVF_PQ, cosine, unit vectors | 70.1% | 94.0% | 94.6% | 94.7% |
+| IVF_PQ, dot, the same unit vectors | 43.7% | 89.9% | 94.1% | 94.1% |
+| IVF_PQ, dot, pivoted scaling | 51.9% | 89.3% | 92.0% | 92.0% |
+| IVF_RQ (RaBitQ, 1 bit), cosine | 10.7% | 11.6% | 11.6% | 16.2% |
+
+- **Train with the metric you search with, and on unit vectors that means cosine.** LanceDB documents dot as equivalent to cosine for unit vectors, and it is for exact search, but a dot-trained PQ index returned 44% of the exact top 10 without refinement, against 70% for a cosine-trained one.
+- **Always refine; 10–50 is enough.** Without refinement, PQ's compressed scores reorder near-ties, and probing more partitions changes nothing (70.1% at 10 probes and at 100). Refining with the stored vectors lifts recall to 94–95%, and refining more than 50 adds nothing.
+- **The remaining 5% are swaps, not mistakes.** With refinement, precision against the hidden complete records (57.9–58.2%) equals exact flat search over the same vectors (57.9%). The misses are equally good records, many of them exact duplicates: at 30% nulls, 54% of records encode to the same vector as another record. That is also why recall plateaus below the scale study's 99.5% on complete records.
+- **A non-unit scaling works with a dot-trained index**, at slightly lower recall (91–94% refined, depending on probes).
+- **RaBitQ failed here.** IVF_RQ with LanceDB's defaults returned under 30% of the exact top 10 in every setting, even though it beat IVF_PQ on random unit vectors in the same LanceDB version. We haven't diagnosed why.
+
+**A note on cosine and MAP noise.** A cosine metric divides by each vector's *realized* norm, which carries MAP cross-term noise (about 1.4% at D = 2,048). Storing each record divided by √(populated fields) instead, and searching by dot product, is exact. In the full factorial pool that raised precision by 6.6 points at 30% nulls and by 11.6 at 10%. But the gain shrank to 1.3 points at D = 8,192 and vanished, or reversed slightly, at 50% nulls and in the 10% and 1% pools. It is a noise effect in this unusually dense fixture, not a general reason to leave the cosine metric.
+
+**Takeaway:** index unit-length vectors with a cosine-trained IVF_PQ, refine 10–50, expect duplicate vectors, and validate any quantizer on your own data.
+
 ## What we learned
 
 | Question | Finding | What to do |
@@ -108,10 +131,11 @@ Experiments 2 and 3 scored the policies exactly. Here they're built from MAP vec
 | What should a missing property cost? | Treating it as neutral (Gower) fills search results with near-empty records: precision ≤ 7% at 30–50% missingness. Cosine was best or within a point of best in every cell. | Omit missing values and use cosine. |
 | Should properties count equally? | Informativeness weights on top of cosine found the most duplicates, or tied, in every cell; Fellegi–Sunter's own missing = 0 rule collapses in large pools. | Weight by how surprising an agreement is, on the query side. |
 | How do we build it? | float16 and one dot product reproduce the exact policies within MAP noise; majority-sign loses partial credit. | L2 property normalization, unit-length float16 vectors, cosine search. |
+| How do we index it? | A cosine-trained IVF_PQ with refine 10–50 matches exact search's result quality; a dot-trained index on the same vectors is worse before refining; RaBitQ failed on these vectors. | Train the index with the search metric, refine, validate the quantizer. |
 
 ## Reproducing this
 
-`sh src/missingness/reproduce.sh` regenerates the inputs, runs the tests and all four experiments, and redraws the figures. Experiment 4's LanceDB store (about 2.5 GB) is gitignored.
+`sh src/missingness/reproduce.sh` regenerates the inputs, runs the tests and all five experiments, and redraws the figures. Experiments 4 and 5 write LanceDB stores of about 2.5 GB and 15 GB, both gitignored.
 
 ## Limits
 

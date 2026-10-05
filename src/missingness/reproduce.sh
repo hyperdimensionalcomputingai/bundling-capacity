@@ -9,5 +9,6 @@ uv run $project python src/missingness/experiment1_weight.py   # Experiment 1
 uv run $project python src/missingness/experiment2_dial.py     # Experiment 2
 uv run $project python src/missingness/experiment3_linkage.py  # Experiment 3
 uv run $project python src/missingness/experiment4_build.py    # Experiment 4
+uv run $project python src/missingness/experiment5_index.py    # Experiment 5 (IVF indexes, ~12 GB store)
 uv run $project python src/missingness/pairwise.py             # HYP-83 pairwise (parked)
 uv run $project python src/missingness/charts.py

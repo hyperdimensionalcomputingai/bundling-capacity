@@ -23,3 +23,4 @@ results/scale/run.log
 
 # missingness: reproducible LanceDB store for HYP-118 Experiment 4 (~2 GB).
 results/missingness/experiment4.lancedb/
+results/missingness/experiment5.lancedb/

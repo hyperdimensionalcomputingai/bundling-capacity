@@ -1,0 +1,42 @@
+{
+  "dimension": 2048,
+  "seed": 11,
+  "rate": 0.3,
+  "pool_size": 919337,
+  "pivot": 1.7363182306289673,
+  "slope": 1.2,
+  "storage": "float16",
+  "queries": "400 complete evaluation-panel records",
+  "ground_truth": "exact search over the same stored float16 vectors, same metric; recall ties count as hits",
+  "num_partitions": 959,
+  "num_sub_vectors": 128,
+  "index_defaults": "8-bit PQ codes, 1-bit RQ codes, 50 k-means iterations, sample rate 256 (LanceDB defaults)",
+  "indexes": {
+    "unit_cosine": {
+      "index": "IVF_PQ",
+      "metric": "cosine",
+      "build_seconds": 129,
+      "stats": "IndexStatistics(num_indexed_rows=919337, num_unindexed_rows=0, index_type='IVF_PQ', distance_type='cosine', num_indices=1)"
+    },
+    "unit_dot": {
+      "index": "IVF_PQ",
+      "metric": "dot",
+      "build_seconds": 145,
+      "stats": "IndexStatistics(num_indexed_rows=919337, num_unindexed_rows=0, index_type='IVF_PQ', distance_type='dot', num_indices=1)"
+    },
+    "pivoted_dot": {
+      "index": "IVF_PQ",
+      "metric": "dot",
+      "build_seconds": 139,
+      "stats": "IndexStatistics(num_indexed_rows=919337, num_unindexed_rows=0, index_type='IVF_PQ', distance_type='dot', num_indices=1)"
+    },
+    "unit_cosine_rq": {
+      "index": "IVF_RQ",
+      "metric": "cosine",
+      "build_seconds": 24,
+      "stats": "IndexStatistics(num_indexed_rows=919337, num_unindexed_rows=0, index_type='IVF_RQ', distance_type='cosine', num_indices=1)"
+    }
+  },
+  "latency": "single-threaded Python loop, warm cache; context only",
+  "lancedb_version": "0.37.1"
+}
