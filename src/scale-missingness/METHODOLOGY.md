@@ -33,25 +33,41 @@ That's 920,000 integer signatures. They exhaust the declared state space and are
 
 MAP-I throughout:
 - **Atoms:** bipolar vectors.
-- **Binding:** element-wise multiplication of role and value.
-- **Record:** the sum of its bound facts, with no sign threshold, compared by cosine.
+- **Binding ($\otimes$):** combine a role hypervector and a value hypervector, implemented as element-wise multiplication.
+- **Bundling ($\oplus$):** combine the bound facts into $h_{\mathrm{record}}$, implemented as an arithmetic sum with no sign threshold, compared by cosine.
 - **Roles:** four independent random vectors.
 - **Values:** independent random vectors for the 8 jobs, 5 regions and 25 interests.
 - **Age levels:** ordinal. A random start vector has D/2 of its coordinates split into nine near-equal parts, and each step up one band flips one more part. The intended similarity is `k_age(i, j) = 1 − |i − j| / 9`, so bands 1 and 10 are orthogonal. `encoder_diagnostics.csv` records the realized cosines, which differ from the intended ones by less than 5/D.
 - **Seeds:** `torch.Generator().manual_seed(1000 × seed + offset)` per atom family.
 
-A complete record has six facts:
+The operators name the conceptual HDC operations. Their implementation in these experiments is ordinary coordinate arithmetic. For coordinate $j$,
 
-```text
-AGE_ROLE ⊙ AGE[age] + JOB_ROLE ⊙ JOB[job] + REGION_ROLE ⊙ REGION[region] + Σ INTEREST_ROLE ⊙ INTEREST[i]
-```
+$$
+\begin{aligned}
+[h_{\mathrm{role}} \otimes h_{\mathrm{value}}]_j &= [h_{\mathrm{role}}]_j [h_{\mathrm{value}}]_j, \\
+[h_a \oplus h_b]_j &= [h_a]_j + [h_b]_j.
+\end{aligned}
+$$
+
+The plus sign in the second equation adds two scalar coordinates; $\oplus$ denotes bundling the hypervectors. Stored bundles keep the unthresholded sum. Cosine comparison divides by the vector norms when scoring, rather than storing normalized vectors.
+
+A complete record has six bound facts: one each for age, job and region, plus one for each of the three interests in the set $I$. Each fact is formed by binding its role to its value; all interests reuse the same interest role. We write
+
+$$
+\begin{aligned}
+h_{\mathrm{record}} &= h_{\mathrm{age\,fact}} \oplus h_{\mathrm{job\,fact}} \oplus h_{\mathrm{region\,fact}} \\
+&\quad \oplus \bigoplus_{i \in I} h_{\mathrm{interest\,fact},i}.
+\end{aligned}
+$$
+
+For example, $h_{\mathrm{age\,fact}} = h_{\mathrm{age\,role}} \otimes h_{\mathrm{age},a}$ for age band $a$, and $h_{\mathrm{interest\,fact},i} = h_{\mathrm{interest\,role}} \otimes h_{\mathrm{interest},i}$ for interest $i$.
 
 ### Two ways to encode a missing field
 
 | Strategy | A missing field contributes |
 | --- | --- |
 | **omit** | nothing |
-| **token** | `ROLE ⊙ NULL[spelling]`: one shared vector per spelling (`"null"`, `"no_value"`, `""`), each an independent random atom |
+| **token** | $h_{\mathrm{role},f} \otimes h_{\mathrm{null},s}$: bind field $f$'s role to the shared vector for spelling $s$ (`"null"`, `"no_value"`, `""`), each an independent random atom |
 
 A null spelling is simply another symbol, so every spelling is a token. What changes the result is whether a token is used at all, and whether two records use the same one. A missing interest set counts as **one** token fact. Three copies of one vector would add at full strength, so two records with unknown interests would share 9 of 12 squared-norm units from missingness alone.
 
@@ -61,7 +77,7 @@ In practice a pipeline maps absent keys, `None`, `""` and textual markers either
 
 For any pair, two similarities are computed exactly from the integer records, without touching a hypervector:
 
-**Content similarity (`S_content`)** counts only what both records actually know:
+**Content similarity (`S_content`)** counts only what both records actually know. The plus signs below add scalar similarity contributions, rather than denoting hypervector bundling:
 
 ```text
 [k_age + same job + same region + |shared interests|]  (each only if both know the field)
@@ -70,9 +86,9 @@ For any pair, two similarities are computed exactly from the integer records, wi
 
 `w` is a record's number of content facts. For two complete records the denominator is 6. **Shared missingness never counts as similarity.**
 
-**Encoder similarity (`S_encoder`)** is the exact cosine of the terms actually encoded, if all atoms were orthogonal. With tokens, each field both records mark missing with the **same spelling** adds 1 to the numerator, and each token counts as a term. Under omit, `S_encoder = S_content`.
+**Encoder similarity (`S_encoder`)** is the exact cosine of the terms actually encoded, with the intended age-level overlap and no accidental overlap between independent random atoms. With tokens, each field both records mark missing with the **same spelling** adds 1 to the numerator, and each token counts as a term. Under omit, `S_encoder = S_content`.
 
-**MAP similarity (`S_MAP`)** is `a · b / (‖a‖ ‖b‖)` computed from the integer-valued sums. The dot products are exact in float32 (at most 36·D), so identical records tie exactly.
+**MAP similarity (`S_MAP`)** is $S_{\mathrm{MAP}} = (h_a \cdot h_b) / (\lVert h_a \rVert \, \lVert h_b \rVert)$ computed from the integer-valued sums. The dot products are exact in float32 (at most 36·D), so identical records tie exactly.
 
 Every result keeps two effects separate:
 - **MAP error:** `S_MAP − S_encoder`, the finite-dimensional noise
@@ -135,7 +151,7 @@ The earlier chat's T = 0.2157 is also evaluated, as a fixed reference. `threshol
 
 **Grid:** D ∈ {512, 2,048, 8,192}, seeds 11, 23 and 37.
 
-**Expected values** (the `S_encoder` curves, for orthogonal atoms):
+**Expected values** (the `S_encoder` curves, with the intended age-level overlap and no accidental overlap between independent random atoms):
 
 | Pair | omit | shared token | mixed spellings |
 | --- | --- | --- | --- |
@@ -193,11 +209,13 @@ The [earlier capacity discussion](https://chatgpt.com/s/cx_6a97c2dbe6d0819199dde
 
 | | Earlier chat | This study |
 | --- | --- | --- |
-| Record vector | `sign(Σ role ⊙ value)`, bipolar | `Σ role ⊙ value`, compared by cosine |
+| Record vector | $\operatorname{sign}\left(\bigoplus_f h_{\mathrm{fact},f}\right)$, bipolar | $\bigoplus_f h_{\mathrm{fact},f}$, compared by cosine |
 | Record shape | five attributes | four fields, six facts when complete |
 | Unrelated-pair cosine | `1 − 2·Hamming/D`, an exact binomial for independent bipolar vectors | a normalized sum of cross-terms between atoms shared across records; spread near 1/√D, not binomial |
 | Related-pair similarity | compressed by majority bundling (arcsine) | expected cosine is `S_encoder` itself |
 | Threshold example | T ≈ 0.2157 at D = 2,048, β = 0.001, ε = 0.01 | T calibrated for related pairs at `S_content ≥ 2/3`; 0.2157 evaluated as a reference only |
+
+Here $h_{\mathrm{fact},f} = h_{\mathrm{role},f} \otimes h_{\mathrm{value},f}$. The notation $\oplus$ denotes additive bundling in both columns; the earlier encoder applies a coordinate-wise sign to that sum afterwards, while this study retains the sum.
 
 Three consequences follow:
 1. The chat's binomial tail does not describe these additive records.

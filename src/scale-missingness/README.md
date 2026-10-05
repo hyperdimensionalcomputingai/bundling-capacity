@@ -6,6 +6,8 @@ This directory implements [HYP-83](https://linear.app/hyperdimensionalcomputing/
 - **[Methodology](METHODOLOGY.md):** fixture, encoder, baselines, threshold contract, storage, and a note on how far the earlier chat's model applies.
 - **[Fixture](../../data/scale-missingness/README.md):** the 920,000 factorial PERSON signatures, query panels, pairs and mask.
 
+Binding uses $\otimes$: a fact is $h_{\mathrm{fact}} = h_{\mathrm{role}} \otimes h_{\mathrm{value}}$. Bundling uses $\oplus$: a record combines its facts as $h_{\mathrm{record}} = \bigoplus_{f \in \mathcal{F}} h_{\mathrm{fact},f}$, where $\mathcal{F}$ is the set of encoded facts. Here binding is element-wise multiplication and bundling is an arithmetic sum without a sign threshold. The stored bundles retain that sum; cosine comparison divides by their norms when scoring. The [methodology](METHODOLOGY.md#encoder) gives the coordinate equations and the six-fact record.
+
 ## The four experiments
 
 | # | Question | Script | Main output |

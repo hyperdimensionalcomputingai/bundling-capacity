@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-09-23T17:37:05.676775</dc:date>
+    <dc:date>2026-10-05T11:02:19.220952</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -580,7 +580,7 @@ L 839.896401 158.333685
     </g>
    </g>
    <g id="text_13">
-    <text style="font-weight: 700; font-size: 13.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20343f" x="493.303229" y="121.184" transform="rotate(-0 493.303229 121.184)">Three nearest neighbors retained</text>
+    <text style="font-weight: 700; font-size: 13.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #20343f" x="493.303229" y="121.184" transform="rotate(-0 493.303229 121.184)">Three nearest neighbours retained</text>
    </g>
   </g>
   <g id="axes_3">

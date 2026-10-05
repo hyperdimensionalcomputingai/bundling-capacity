@@ -14,12 +14,12 @@ Each synthetic `PERSON` has four fields:
 
 Every combination occurs exactly once, giving **920,000 records**. That is the whole state space, not a sample of people, so the records never repeat and we always know exactly how alike two of them are.
 
-Each field is **bound** to its own role vector (element-wise multiplication in MAP), and a record is the **sum** of those facts: six of them when complete. Nearby age bands get overlapping vectors, so a 30-year-old looks more like a 35-year-old than a 65-year-old. We compare records by cosine.
+Each value is **bound** to its field's role vector using $\otimes$: $h_{\mathrm{fact}} = h_{\mathrm{role}} \otimes h_{\mathrm{value}}$. A record **bundles** those facts using $\oplus$: $h_{\mathrm{record}} = \bigoplus_{f \in \mathcal{F}} h_{\mathrm{fact},f}$, with six facts in $\mathcal{F}$ when complete. In this additive MAP encoder, binding is element-wise multiplication and bundling is an arithmetic sum without a sign threshold. Nearby age bands get overlapping vectors, so a 30-year-old looks more like a 35-year-old than a 65-year-old. We compare records by cosine.
 
 Because the records are synthetic and exhaustive, every pair has two exact reference similarities:
 
 - **Content similarity** counts only what both records actually know: the age overlap, a shared job, a shared region and shared interests. Two people who are both missing a field do *not* get credit for it.
-- **Encoder similarity** is the cosine the encoding would produce if its random vectors were perfectly orthogonal. It includes anything the null strategy itself adds.
+- **Encoder similarity** is the cosine the encoding would produce with the intended age-level overlap and no accidental overlap between independent random atoms. It includes anything the null strategy itself adds.
 
 That gives us a clean way to separate two effects. **MAP error** is the gap between the measured cosine and the encoder similarity; it is noise from using finite, random vectors. **Semantic shift** is the gap between the encoder and content similarities; it is similarity that a design choice added on purpose or by accident.
 

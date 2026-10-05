@@ -38,7 +38,7 @@ Both panels balance jobs and regions and cover all ten age bands. **Endpoint age
 From the repository root:
 
 ```sh
-uv run --project src/scale-missingness python data/scale-missingness/generate.py
+uv run --project src/scale-missingness --locked python data/scale-missingness/generate.py
 ```
 
 Generation is deterministic, with seed string `hyp83-person-v2` and torch generators. The run records the SHA-256 of every Parquet file and refuses to reuse frozen thresholds if any file changes.

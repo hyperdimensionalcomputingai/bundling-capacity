@@ -2,6 +2,14 @@
 
 This study measures scored-answer recovery, whole-profile geometry, and whether similar profiles remain close while adding 5 to 50 facts to a single MAP bundle. The 50 item keys and one ordered five-level answer scale are reused across every profile at a given dimension and seed.
 
+We write binding as $\otimes$ and bundling as $\oplus$. For $m$ items with scored answers $s_i$, the profile hypervector is
+
+$$
+h_{\mathrm{profile}} = \bigoplus_{i=1}^{m} \left(h_{\mathrm{item},i} \otimes h_{\mathrm{answer},s_i}\right).
+$$
+
+The implementation uses `torchhd.bind` for element-wise multiplication and `torchhd.bundle` for the arithmetic sum, with no final sign threshold. Item readout binds the profile to the selected bipolar item key again: $h_{\mathrm{readout},i} = h_{\mathrm{profile}} \otimes h_{\mathrm{item},i}$. The readout is compared with the five clean answer vectors before reversing the item's scoring rule.
+
 ## Reproduce
 
 From the repository root:
