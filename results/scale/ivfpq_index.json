@@ -1,0 +1,27 @@
+{
+  "table": "records_d2048_s11",
+  "rows": 920000,
+  "distance": "cosine",
+  "storage": "float16",
+  "num_partitions": 959,
+  "num_sub_vectors": 128,
+  "num_bits": 8,
+  "max_iterations": 50,
+  "sample_rate": 256,
+  "build_seconds": 128,
+  "nprobes": [
+    10,
+    20,
+    50,
+    100
+  ],
+  "refine_factor": [
+    null,
+    10,
+    50
+  ],
+  "ground_truth": "exact top 10 from Experiment 1 (self excluded)",
+  "recall": "tie-aware: a returned record counts when its exact score >= the exact 10th score - 1e-6, both recomputed from the stored integer vectors",
+  "latency": "logged for context only; single-threaded Python loop, warm cache; not a studied outcome",
+  "lancedb_version": "0.37.1"
+}

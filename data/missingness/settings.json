@@ -1,0 +1,10 @@
+{
+  "seed": "hyp83-person-v2",
+  "null_spellings": [
+    "null",
+    "no_value",
+    ""
+  ],
+  "missing_rate": 0.3,
+  "pairs_per_type": 2000
+}

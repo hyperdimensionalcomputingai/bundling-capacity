@@ -1,0 +1,62 @@
+{
+  "design": "MAP-I: bipolar role and value atoms, element-wise binding, additive bundle, cosine comparison; exact streamed search",
+  "fixture": "controlled factorial PERSON fixture, 10 x 8 x 5 x C(25,3) = 920,000 signatures",
+  "fixture_sha256": {
+    "signatures.parquet": "a4814cf12bfcfbbe064e8aa5aab1bfa8c77d0d231159d0439dbb9f8cb4f3d0ef",
+    "query_panels.parquet": "b020e7ef9cb6f32e62054d66cc6b3f83fe5aa3a04c96c82ecaf82c8bbcc276ee"
+  },
+  "settings": {
+    "dimensions": [
+      512,
+      1024,
+      2048,
+      4096,
+      8192
+    ],
+    "seeds": [
+      11,
+      23,
+      37
+    ],
+    "prefixes": [
+      100,
+      1000,
+      10000,
+      100000,
+      920000
+    ],
+    "calibration_candidates": 100000,
+    "related_cutoff": 0.6666666666666666,
+    "tiers": [
+      "unrelated_0",
+      "low_(0,1/3)",
+      "mid_[1/3,2/3)",
+      "related_[2/3,1]"
+    ],
+    "beta": 0.01,
+    "epsilon": 0.01,
+    "reference_threshold": 0.2157,
+    "top_k": 10,
+    "head": 100,
+    "histogram_bin": 0.0001,
+    "chunk": 8192
+  },
+  "storage": "LanceDB fixed-size float16 lists: every atom (symbols_d{D}) and the complete-record bundles at D=2048, seed 11 (records_d2048_s11). Coordinates are small integers, so float16 is exact. All other bundles are encoded on the fly in float32 from the stored atoms.",
+  "compute_dtype": "float32; float64 only for running sums over >1e8 pairs",
+  "atom_seed_formula": "torch.Generator().manual_seed(1000 * seed + offset); offsets 1 roles, 2 age levels, 3-5 job/region/interest values (7 is reserved for src/missingness null tokens)",
+  "self_match": "a query's own record is excluded from its candidates",
+  "torch_threads": 10,
+  "versions": {
+    "torch": "2.13.0",
+    "torchhd": "5.8.4",
+    "polars": "1.44.1",
+    "pyarrow": "25.0.1",
+    "scipy": "1.18.1",
+    "lancedb": "0.37.1"
+  },
+  "stage_seconds": {
+    "build": 9,
+    "calibrate": 8,
+    "evaluate": 126
+  }
+}

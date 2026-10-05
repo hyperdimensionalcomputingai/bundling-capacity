@@ -1,0 +1,28 @@
+[project]
+name = "scale-experiment"
+version = "0.1.0"
+description = "MAP-I record similarity among 920,000 candidates: chance similarity across D and N, and IVF_PQ against exact search"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "lancedb==0.37.1",
+  "matplotlib==3.11.1",
+  "numpy==2.5.3",
+  "polars==1.44.1",
+  "pyarrow==25.0.1",
+  "scipy==1.18.1",
+  "torch==2.13.0",
+  "torch-hd==5.8.4",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.14"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

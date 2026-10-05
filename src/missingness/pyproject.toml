@@ -1,0 +1,26 @@
+[project]
+name = "missingness-experiment"
+version = "0.1.0"
+description = "Missing values and property normalization in MAP-I record similarity (parked for HYP-118)"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "matplotlib==3.11.1",
+  "numpy==2.5.3",
+  "polars==1.44.1",
+  "pyarrow==25.0.1",
+  "torch==2.13.0",
+  "torch-hd==5.8.4",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.14"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
