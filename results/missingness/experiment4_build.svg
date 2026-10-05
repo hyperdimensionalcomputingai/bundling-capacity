@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="681.243594pt" height="375.865992pt" viewBox="0 0 681.243594 375.865992" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-05T16:52:09.900943</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 375.865992
+L 681.243594 375.865992
+L 681.243594 0
+L 0 0
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 186.912 308.592
+L 673.632 308.592
+L 673.632 80.208
+L 186.912 80.208
+z
+" style="fill: #fcfcfb"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 186.912 308.592
+L 186.912 80.208
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #e4e3df; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_2"/>
+     <g id="text_1">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="186.912" y="322.569539" transform="rotate(-0 186.912 322.569539)">0%</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 265.415226 308.592
+L 265.415226 80.208
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #e4e3df; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_4"/>
+     <g id="text_2">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="265.415226" y="322.569539" transform="rotate(-0 265.415226 322.569539)">10%</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 343.918452 308.592
+L 343.918452 80.208
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #e4e3df; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_6"/>
+     <g id="text_3">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="343.918452" y="322.569539" transform="rotate(-0 343.918452 322.569539)">20%</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 422.421677 308.592
+L 422.421677 80.208
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #e4e3df; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_8"/>
+     <g id="text_4">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="422.421677" y="322.569539" transform="rotate(-0 422.421677 322.569539)">30%</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 500.924903 308.592
+L 500.924903 80.208
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #e4e3df; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_10"/>
+     <g id="text_5">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="500.924903" y="322.569539" transform="rotate(-0 500.924903 322.569539)">40%</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_11">
+      <path d="M 579.428129 308.592
+L 579.428129 80.208
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #e4e3df; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_12"/>
+     <g id="text_6">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="579.428129" y="322.569539" transform="rotate(-0 579.428129 322.569539)">50%</text>
+     </g>
+    </g>
+    <g id="xtick_7">
+     <g id="line2d_13">
+      <path d="M 657.931355 308.592
+L 657.931355 80.208
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #e4e3df; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_14"/>
+     <g id="text_7">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="657.931355" y="322.569539" transform="rotate(-0 657.931355 322.569539)">60%</text>
+     </g>
+    </g>
+    <g id="text_8">
+     <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #52514e" x="430.272" y="341.070359" transform="rotate(-0 430.272 341.070359)">Precision@10 against the hidden complete records</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_15"/>
+     <g id="text_9">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="180.912" y="105.700868" transform="rotate(-0 180.912 105.700868)">cosine, float32</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_16"/>
+     <g id="text_10">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="180.912" y="136.596972" transform="rotate(-0 180.912 136.596972)">cosine, float16</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_17"/>
+     <g id="text_11">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="180.912" y="167.493076" transform="rotate(-0 180.912 167.493076)">cosine + query weights, float16</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_18"/>
+     <g id="text_12">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="180.912" y="198.38918" transform="rotate(-0 180.912 198.38918)">mismatch, float16</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_19"/>
+     <g id="text_13">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="180.912" y="229.285284" transform="rotate(-0 180.912 229.285284)">pivoted (s = 1.2), float16</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_20"/>
+     <g id="text_14">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="180.912" y="260.181387" transform="rotate(-0 180.912 260.181387)">majority-sign cosine, float16</text>
+     </g>
+    </g>
+    <g id="ytick_7">
+     <g id="line2d_21"/>
+     <g id="text_15">
+      <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #52514e" x="180.912" y="291.077491" transform="rotate(-0 180.912 291.077491)">Gower rerank of cosine top 100</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 186.912 110.208117
+L 456.178065 110.208117
+L 456.178065 93.21526
+L 186.912 93.21526
+z
+" clip-path="url(#p22dcecb6b4)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 186.912 141.104221
+L 456.178065 141.104221
+L 456.178065 124.111364
+L 186.912 124.111364
+z
+" clip-path="url(#p22dcecb6b4)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 186.912 172.000325
+L 464.028387 172.000325
+L 464.028387 155.007468
+L 186.912 155.007468
+z
+" clip-path="url(#p22dcecb6b4)" style="fill: #e87ba4"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 186.912 202.896429
+L 459.318194 202.896429
+L 459.318194 185.903571
+L 186.912 185.903571
+z
+" clip-path="url(#p22dcecb6b4)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 186.912 233.792532
+L 443.617548 233.792532
+L 443.617548 216.799675
+L 186.912 216.799675
+z
+" clip-path="url(#p22dcecb6b4)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 186.912 264.688636
+L 420.851613 264.688636
+L 420.851613 247.695779
+L 186.912 247.695779
+z
+" clip-path="url(#p22dcecb6b4)" style="fill: #2a78d6"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 186.912 295.58474
+L 290.536258 295.58474
+L 290.536258 278.591883
+L 186.912 278.591883
+z
+" clip-path="url(#p22dcecb6b4)" style="fill: #1baf7a"/>
+   </g>
+   <g id="line2d_22">
+    <path d="M 459.263241 112.834286
+L 459.263241 90.589091
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #0b0b0b; stroke-width: 1.6; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_23">
+    <path d="M 459.263241 143.73039
+L 459.263241 121.485195
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #0b0b0b; stroke-width: 1.6; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_24">
+    <path d="M 465.574901 174.626494
+L 465.574901 152.381299
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #0b0b0b; stroke-width: 1.6; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_25">
+    <path d="M 460.841156 205.522597
+L 460.841156 183.277403
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #0b0b0b; stroke-width: 1.6; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_26">
+    <path d="M 441.042643 236.418701
+L 441.042643 214.173506
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #0b0b0b; stroke-width: 1.6; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_27">
+    <path d="M 459.263241 267.314805
+L 459.263241 245.06961
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #0b0b0b; stroke-width: 1.6; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_28">
+    <path d="M 189.706715 298.210909
+L 189.706715 275.965714
+" clip-path="url(#p22dcecb6b4)" style="fill: none; stroke: #0b0b0b; stroke-width: 1.6; stroke-linecap: square"/>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="465.543499" y="104.04993" transform="rotate(-0 465.543499 104.04993)">34.3% · agrees with exact top 10 96%</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="465.543499" y="134.946034" transform="rotate(-0 465.543499 134.946034)">34.3% · agrees with exact top 10 96%</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="471.855159" y="165.842138" transform="rotate(-0 471.855159 165.842138)">35.3% · agrees with exact top 10 94%</text>
+   </g>
+   <g id="text_19">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="467.121414" y="196.738242" transform="rotate(-0 467.121414 196.738242)">34.7% · agrees with exact top 10 92%</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="449.897806" y="227.634346" transform="rotate(-0 449.897806 227.634346)">32.7% · agrees with exact top 10 90%</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="465.543499" y="258.53045" transform="rotate(-0 465.543499 258.53045)">29.8% · agrees with exact top 10 78%</text>
+   </g>
+   <g id="text_22">
+    <text style="font-size: 9px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="296.816516" y="289.426554" transform="rotate(-0 296.816516 289.426554)">13.2% · agrees with exact top 10 24%</text>
+   </g>
+  </g>
+  <g id="text_23">
+   <text style="font-weight: 700; font-size: 16px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #0b0b0b" x="7.2" y="19.3575" transform="rotate(-0 7.2 19.3575)">One stored index, a dot product, and float16 serve the useful policies</text>
+  </g>
+  <g id="text_24">
+   <text style="font-size: 10.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="7.2" y="37.642359" transform="rotate(-0 7.2 37.642359)">Precision@10 of LanceDB flat search over MAP vectors (bars) and of the exact policy it implements (ticks)</text>
+  </g>
+  <g id="text_25">
+   <text style="font-size: 8.5px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #52514e" x="7.2" y="366.624" transform="rotate(-0 7.2 366.624)">D = 2,048, seed 11 · first 100,000 records, 30% missing at random · 400 complete queries · float16 and float32 return the same top 10 for 96.5% of queries</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p22dcecb6b4">
+   <rect x="186.912" y="80.208" width="486.72" height="228.384"/>
+  </clipPath>
+ </defs>
+</svg>

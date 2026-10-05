@@ -16,7 +16,7 @@ Throughout these docs, $h$ denotes a hypervector, $\otimes$ denotes **binding**,
 | Data | [`data/qa-encoding`](data/qa-encoding/README.md), 31 fixed synthetic profiles | [`data/scale`](data/scale/README.md), controlled factorial fixture |
 | Linear | HYP-84 | HYP-83 |
 
-**Missing data** is a third, separate study ([HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization)): how normalizing each property before bundling decides what a missing value costs, and how that parallels similarity with missing values in statistics, length normalization in information retrieval, and field weights in record linkage. Its experiments aren't built yet; [`src/missingness`](src/missingness/README.md) holds the starting material split out of HYP-83.
+**Missing data** is a third, separate study ([HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization)): how normalizing each property before bundling decides what a missing value costs, and how that parallels similarity with missing values in statistics, length normalization in information retrieval, and field weights in record linkage. See [`src/missingness`](src/missingness/README.md), with a [report](src/missingness/REPORT.md) and plain-language takeaways for practitioners.
 
 The two studies use **different encoders and workloads**, so their accuracy numbers should not be compared as if one encoder produced both. Both fixtures are synthetic. The original records stay the exact source of truth; bundle readout and similarity are measured properties of each encoder on its fixture, not general capacity limits of a hyperspace.
 

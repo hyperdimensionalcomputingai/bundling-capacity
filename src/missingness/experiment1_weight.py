@@ -1,14 +1,13 @@
-"""Prototype of HYP-118 Experiment 1: does normalizing each property change how much missing interests cost?
+"""HYP-118 Experiment 1: who sets the weight? Between-property normalization.
 
-One query and a handful of hand-built candidates, encoded two ways from the same
-atoms (plan: EXPERIMENT_UPDATE.md in this directory):
+Two encodings from the same atoms (plan for part A: EXPERIMENT_UPDATE.md):
 
   without_normalization  the current encoder: every known value is one bound fact,
                          so three interests contribute three terms
   with_normalization     each known property is scaled to unit length before
                          bundling, so every observed property has the same norm
 
-Candidates:
+Part A, ranking: one query and hand-built candidates.
 
   A_k  matches the query on age, job and region, and knows k = 0..3 of the
        query's three interests (the rest are unknown and omitted, not mismatched)
@@ -17,7 +16,18 @@ Candidates:
 The A_k curve isolates the cost of missing interests; B is the reference A has to
 beat. Each MAP cosine is reported next to its exact value if atoms were orthogonal.
 
-Records are built directly; no fixture or LanceDB store is needed. Atoms come from
+Part B, influence: how much of a match the interests property supplies. For random
+fixture records, a query copy that knows its first n_q interests is compared with a
+candidate copy of the *same person* that knows its first n_c, with age, job and
+region known on both. Every known value agrees, so the cosine splits exactly into
+per-property contributions t_p(q) . t_p(c) / (|h_q| |h_c|), and the interests'
+share of the match is measured on MAP vectors next to its orthogonal-atom value:
+
+  without normalization  shared / (3 + shared),  shared = min(n_q, n_c)
+  with normalization     x / (3 + x),            x = shared / sqrt(n_q * n_c)
+
+Part A records are built directly; part B samples fixture records. Neither needs
+the LanceDB store; no fixture or LanceDB store is needed. Atoms come from
 `person.codebook`, the same deterministic seeding the store holds. The store keeps
 only seeds 11, 23 and 37, and this experiment repeats over 100 seeds.
 """
@@ -25,6 +35,7 @@ only seeds 11, 23 and 37, and this experiment repeats over 100 seeds.
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 from pathlib import Path
 
@@ -44,6 +55,8 @@ QUERY = {"age_band": 4, "job_category": 2, "home_region": 1, "interests": (3, 9,
 B_JOB = 5
 KNOWN_INTERESTS = (0, 1, 2, 3)
 ENCODINGS = ("without_normalization", "with_normalization")
+INFLUENCE_SEEDS = tuple(range(1, 21))  # part B: atom seeds
+INFLUENCE_RECORDS = 500  # part B: random fixture records per seed and (n_q, n_c) cell
 
 
 def build_records() -> tuple[Records, list[dict]]:
@@ -92,6 +105,70 @@ def expected(records: Records) -> dict[str, torch.Tensor]:
     }
 
 
+def with_interests(records: Records, n: int) -> Records:
+    """Copies that know only their first n interests; everything else as given."""
+    drop = torch.zeros(len(records), 3, dtype=torch.bool)
+    drop[:, n:] = True
+    interests = torch.where(drop, -1, records.interests).to(torch.int8)
+    return Records(records.record_index, records.state, records.value, interests, records.spelling)
+
+
+def influence(log=print) -> pl.DataFrame:
+    """Part B: the interests property's share of a same-person match, by n_q and n_c."""
+    complete = person.complete_records(person.load_fixture())
+    rows = []
+    for seed in INFLUENCE_SEEDS:
+        book = person.codebook(DIMENSION, seed)
+        g = torch.Generator().manual_seed(seed)
+        base = complete.take(torch.randint(len(complete), (INFLUENCE_RECORDS,), generator=g))
+        for normalized, encoding in ((False, ENCODINGS[0]), (True, ENCODINGS[1])):
+            terms = {
+                n: person.property_terms(book, with_interests(base, n), normalized)
+                for n in (1, 2, 3)
+            }
+            for n_q, n_c in itertools.product((1, 2, 3), repeat=2):
+                tq, tc = terms[n_q], terms[n_c]
+                norms = tq.sum(0).norm(dim=1) * tc.sum(0).norm(dim=1)
+                parts = (tq * tc).sum(-1) / norms  # (4, n) per-property contribution to the cosine
+                cos = parts.sum(0)
+                rows.append(
+                    {
+                        "encoding": encoding,
+                        "seed": seed,
+                        "query_interests": n_q,
+                        "candidate_interests": n_c,
+                        "interest_share": float((parts[3] / cos).mean()),
+                        "cosine": float(cos.mean()),
+                    }
+                )
+    frame = pl.DataFrame(rows)
+    shared = pl.min_horizontal("query_interests", "candidate_interests")
+    x = (
+        pl.when(pl.col("encoding") == ENCODINGS[1])
+        .then(shared / (pl.col("query_interests") * pl.col("candidate_interests")).sqrt())
+        .otherwise(shared)
+    )
+    norm = (
+        pl.when(pl.col("encoding") == ENCODINGS[1])
+        .then(pl.lit(4.0))
+        .otherwise(((3 + pl.col("query_interests")) * (3 + pl.col("candidate_interests"))).sqrt())
+    )
+    return (
+        frame.group_by("encoding", "query_interests", "candidate_interests")
+        .agg(
+            pl.len().alias("seeds"),
+            pl.col("interest_share").mean().alias("measured_share"),
+            pl.col("interest_share").std().alias("measured_share_sd"),
+            pl.col("cosine").mean().alias("measured_cosine"),
+        )
+        .with_columns(
+            expected_share=x / (3 + x),
+            expected_cosine=(3 + x) / norm,
+        )
+        .sort("encoding", "query_interests", "candidate_interests", descending=[True, False, False])
+    )
+
+
 def run(out: Path, log=print):
     records, meta = build_records()
     ideal = expected(records)
@@ -109,7 +186,7 @@ def run(out: Path, log=print):
                 )
             )
     frame = pl.concat(rows)
-    frame.write_parquet(out / "normalization.parquet")
+    frame.write_parquet(out / "experiment1_ranking.parquet")
 
     keys = ["encoding", "candidate", "candidate_type", "known_interests"]
     summary = (
@@ -125,7 +202,7 @@ def run(out: Path, log=print):
         )
         .sort("encoding", "candidate", descending=[True, False])
     )
-    summary.write_csv(out / "normalization_summary.csv", float_precision=5)
+    summary.write_csv(out / "experiment1_ranking_summary.csv", float_precision=5)
 
     # Each A_k against B in the same seed and encoding. The predicted winner comes from
     # the orthogonal-atom scores; a seed "holds" when the measured scores agree with it.
@@ -152,7 +229,7 @@ def run(out: Path, log=print):
         )
         .sort("encoding", "known_interests", descending=[True, False])
     )
-    rankings.write_csv(out / "normalization_rankings.csv", float_precision=5)
+    rankings.write_csv(out / "experiment1_rankings.csv", float_precision=5)
 
     config = {
         "plan": "src/missingness/EXPERIMENT_UPDATE.md",
@@ -166,7 +243,15 @@ def run(out: Path, log=print):
         "dtype": "float32",
         "normalization": "each known property's bound facts divided by their L2 norm; no sign threshold",
     }
-    (out / "normalization_config.json").write_text(json.dumps(config, indent=2) + "\n")
+    config["influence"] = {
+        "seeds_inclusive": [INFLUENCE_SEEDS[0], INFLUENCE_SEEDS[-1]],
+        "records_per_seed_and_cell": INFLUENCE_RECORDS,
+        "pairs": "same person; query knows its first n_q interests, candidate its first n_c; age, job, region known",
+        "share": "interests' contribution t_int(q).t_int(c)/(|h_q||h_c|) divided by the cosine, averaged over records",
+    }
+    (out / "experiment1_config.json").write_text(json.dumps(config, indent=2) + "\n")
+    shares = influence(log)
+    shares.write_csv(out / "experiment1_influence.csv", float_precision=5)
     with pl.Config(tbl_rows=-1, tbl_cols=-1, float_precision=3, tbl_width_chars=160):
         log(
             summary.select(
@@ -174,6 +259,7 @@ def run(out: Path, log=print):
             )
         )
         log(rankings.drop("candidate"))
+        log(shares)
 
 
 def main():

@@ -1,0 +1,24 @@
+{
+  "dimension": 2048,
+  "seed": 11,
+  "rate": 0.3,
+  "pool": "first 100,000 fixture records, minus 61 with nothing known",
+  "pool_size": 99939,
+  "pivot": 1.7370667457580566,
+  "slope": 1.2,
+  "k": 10,
+  "rerank_depth": 100,
+  "query_weights": {
+    "age": 2.2188234329223633,
+    "job": 1.9740756750106812,
+    "region": 1.5040746927261353,
+    "interests": 3.522793769836426
+  },
+  "search": "LanceDB flat search (no index); dot distance is 1 - dot",
+  "float16_vs_float32": {
+    "top10_overlap_f16_vs_f32": 0.9965,
+    "queries_with_identical_top10": 0.965,
+    "max_abs_score_difference_rank_aligned": 0.0004767179489135742
+  },
+  "lancedb_version": "0.37.1"
+}

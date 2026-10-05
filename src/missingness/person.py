@@ -14,7 +14,7 @@ handled by one of two strategies:
 
 A missing interest set is one token fact, the same weight as any other field.
 
-`encode_normalized` is the property-normalized alternative used in Experiment 5:
+`encode_normalized` is the property-normalized alternative studied in HYP-118:
 each known field is scaled to unit length before bundling.
 """
 
@@ -108,6 +108,61 @@ def masked_records(signatures: pl.DataFrame, data_dir: Path = DATA) -> Records:
     return complete_records(signatures).without(missing)
 
 
+def from_values(record_index, value: torch.Tensor, interests: torch.Tensor) -> Records:
+    """Records from value codes where -1 marks a missing value.
+
+    A scalar field is MISSING when its value is -1. The interest property is MISSING
+    only when all three slots are -1; otherwise the known slots are its values.
+    """
+    state = torch.cat([value < 0, (interests < 0).all(1, keepdim=True)], 1).to(torch.int8)
+    n = len(value)
+    return Records(
+        torch.as_tensor(record_index).long(),
+        state,
+        value.to(torch.int8),
+        interests.to(torch.int8),
+        torch.zeros(n, 4, dtype=torch.int8),
+    )
+
+
+def mcar_records(signatures: pl.DataFrame, rate: float, data_dir: Path = DATA) -> Records:
+    """HYP-118: the fixture with one fixed missing-completely-at-random mask at `rate`."""
+    mask = pl.read_parquet(data_dir / "mcar.parquet").filter(pl.col("rate") == rate)
+    if not mask["record_index"].equals(signatures["record_index"]):
+        raise ValueError(f"No MCAR mask aligned with the signatures at rate {rate}")
+    complete = complete_records(signatures)
+    scalar = mask.select([f"{f}_missing" for f in FIELDS[:3]]).to_torch().bool()
+    slots = mask.select([f"interest_{k}_missing" for k in (1, 2, 3)]).to_torch().bool()
+    return from_values(
+        complete.record_index,
+        torch.where(scalar, -1, complete.value),
+        torch.where(slots, -1, complete.interests),
+    )
+
+
+def duplicate_records(rate: float, purpose: str, data_dir: Path = DATA) -> Records:
+    """HYP-118 Experiment 3: noisy duplicates. `record_index` is the source record they copy."""
+    rows = pl.read_parquet(data_dir / "duplicates.parquet").filter(
+        (pl.col("rate") == rate) & (pl.col("purpose") == purpose)
+    )
+    cols = lambda names: rows.select(names).to_torch().to(torch.int8)
+    return from_values(
+        rows["source_record"].to_torch(),
+        cols(list(FIELDS[:3])),
+        cols(["interest_1", "interest_2", "interest_3"]),
+    )
+
+
+def query_panel(name: str, data_dir: Path = SCALE_DATA) -> torch.Tensor:
+    """Record indices of the scale study's calibration or evaluation query panel, in rank order."""
+    rows = (
+        pl.read_parquet(data_dir / "query_panels.parquet")
+        .filter(pl.col("panel") == name)
+        .sort("query_rank")
+    )
+    return rows["record_index"].to_torch().long()
+
+
 # --------------------------------------------------------------------------- MAP-I encoder
 
 ATOM_FAMILIES = ("role", "age_level", "job_category", "home_region", "interests", "null")
@@ -144,6 +199,10 @@ def make_atoms(dimension: int, seed: int) -> dict[str, torch.Tensor]:
         )
     atoms["null"] = torchhd.random(
         len(NULL_SPELLINGS), dimension, vsa="MAP", generator=gen(7), dtype=torch.float32
+    )
+    # One tie-break vector per property for majority-sign normalization (HYP-118 Experiment 4).
+    atoms["tiebreak"] = torchhd.random(
+        4, dimension, vsa="MAP", generator=gen(8), dtype=torch.float32
     )
     return atoms
 
@@ -206,6 +265,39 @@ def encode_sum(book: Codebook, records: Records, strategy: str) -> torch.Tensor:
     return total
 
 
+def property_terms(book: Codebook, records: Records, normalized: bool) -> torch.Tensor:
+    """Each property's own term, (4, n, D); a record's bundle is their sum.
+
+    Unnormalized, a property's term is the sum of its bound facts. Normalized, that
+    sum is divided by its L2 norm, so every known property has unit length. Omit strategy.
+    """
+    terms = []
+    for f in range(len(FIELDS)):
+        others = torch.ones(len(records), len(FIELDS), dtype=torch.bool)
+        others[:, f] = False
+        part = encode_sum(book, records.without(others), "omit")
+        terms.append(part / part.norm(dim=1, keepdim=True).clamp(min=1) if normalized else part)
+    return torch.stack(terms)
+
+
+def encode_sign(book: Codebook, records: Records) -> torch.Tensor:
+    """Majority-sign normalization: each known property's bundle is thresholded to +-1.
+
+    sign(ROLE * sum of values) = ROLE * sign(sum of values), because the role is bipolar.
+    With an even number of values some coordinates sum to 0; half a fixed random
+    tie-break vector per property decides them, and never changes an odd sum. Every
+    known property then has norm sqrt(D), the bundle stays integer-valued (float16 is
+    exact), and unknown properties contribute nothing (Kanerva 2009).
+    """
+    total = torch.zeros(len(records), book.dimension)
+    terms = property_terms(book, records, normalized=False)
+    for f in range(len(FIELDS)):
+        part = terms[f]
+        known = part.abs().sum(1, keepdim=True) > 0
+        total += torch.where(known, torch.sign(part + 0.5 * book.atoms["tiebreak"][f]), 0.0)
+    return total
+
+
 def encode_normalized(book: Codebook, records: Records) -> torch.Tensor:
     """Property-normalized bundles: each known field is scaled to unit length before bundling.
 
@@ -213,16 +305,10 @@ def encode_normalized(book: Codebook, records: Records) -> torch.Tensor:
     Binding a bipolar role preserves norms, so this equals the field's bound facts
     from `encode_sum`, divided by their norm. Each observed field then contributes
     the same norm however many values it lists; a field with no known value
-    contributes nothing. Omit strategy only: this is the comparison in Experiment 5.
+    contributes nothing. Omit strategy only.
     Coordinates are no longer integers, so float32 dot products are not exact ties.
     """
-    total = torch.zeros(len(records), book.dimension)
-    for f in range(len(FIELDS)):
-        others = torch.ones(len(records), len(FIELDS), dtype=torch.bool)
-        others[:, f] = False
-        part = encode_sum(book, records.without(others), "omit")
-        total += part / part.norm(dim=1, keepdim=True).clamp(min=1)  # zero rows stay zero
-    return total
+    return property_terms(book, records, normalized=True).sum(0)  # unknown properties stay zero
 
 
 def cosine(a_sum: torch.Tensor, b_sum: torch.Tensor, paired: bool = False) -> torch.Tensor:

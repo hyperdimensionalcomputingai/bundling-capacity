@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Missing values and property normalization in MAP-I record similarity (parked for HYP-118)"
 requires-python = ">=3.13,<3.14"
 dependencies = [
+  "lancedb==0.37.1",
   "matplotlib==3.11.1",
   "numpy==2.5.3",
   "polars==1.44.1",

@@ -1,0 +1,40 @@
+{
+  "rates": [
+    0.1,
+    0.3,
+    0.5
+  ],
+  "densities": [
+    1.0,
+    0.1,
+    0.01
+  ],
+  "slopes": [
+    0.0,
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    1.0,
+    1.1,
+    1.2,
+    1.3,
+    1.4,
+    1.5,
+    1.6
+  ],
+  "k": 10,
+  "sample_seed": 118,
+  "queries": "complete records of the scale study's evaluation panel (400); slope fitted on its calibration panel (200)",
+  "relevance": "hidden truth: equal-weight property similarity of the complete records; top 10 with ties",
+  "own_copy": "the query person's masked record; ties placed uniformly in expectation",
+  "pivot": "mean sqrt(known properties) over the pool (Singhal's average old normalizer)",
+  "slope_fit": "max calibration precision@10; within 0.001 of the best, the slope closest to 1",
+  "scores": "exact policy values (orthogonal atoms); the MAP implementation is Experiment 4",
+  "bootstrap": "2000 resamples over evaluation queries"
+}

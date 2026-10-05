@@ -1,19 +1,41 @@
-# Missing data and normalization (parked starting material)
+# Missing data and normalization
 
-This directory holds the missing-value work split out of the HYP-83 [scale study](../scale/README.md). It is the starting point for [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization), a separate research post on handling missing data via normalization. The HYP-118 experiments are not built yet; what is here runs, but it is an earlier design, not the new suite.
+This directory implements [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization): how to handle missing values when records are hypervector bundles. The [scale study](../scale/README.md) asks how a complete record behaves among a million others; this one asks what to do when records are incomplete. The answer turns out to be about **normalization**, and it lines up with what statistics, information retrieval and record linkage worked out decades ago.
 
-| File | What it is |
-| --- | --- |
-| `EXPERIMENT_UPDATE.md` | The plan for the property-normalization comparison, written after David's feedback |
-| `normalization.py` | Prototype of HYP-118 Experiment 1: the A_k / B comparison with and without per-property normalization, D = 2,048, seeds 1–100 |
-| `pairwise.py` | HYP-83's pairwise experiment: omitting a missing field against a null token (`"null"`, `"no_value"`, `""`, mixed spellings) |
-| `person.py` | Records with missing values, the MAP-I encoder (omit or token), `encode_normalized`, and the exact baselines |
-| `charts.py` | The two figures below |
-| `tests/` | Orthogonal-atom exactness with and without normalization, strategy equivalences and the plan's predictions |
+- **[Report](REPORT.md):** the four experiments, what we found, and the takeaways.
+- **[Methodology](METHODOLOGY.md):** encodings, missing-value policies, relevance, ties, and each experiment's design.
+- **[Inputs](../../data/missingness/README.md):** missingness masks and noisy duplicates built on the scale study's fixture.
 
-HYP-83's retrieval check at 30% missingness (omit against a shared token, among 920,000 records) is not parked as code: it was woven into the scale study's streamed search. The code is at commit `450c4e6` and its saved tables are in `results/missingness/`.
+## What this means for HDC practitioners
 
-Binding uses $\otimes$ and bundling uses $\oplus$. Without normalization a record is $\bigoplus_{p} \bigoplus_{v \in V_p} h_{\mathrm{role},p} \otimes h_{p,v}$; with per-property normalization it is $\bigoplus_{p} h_{\mathrm{role},p} \otimes (h_p / \lVert h_p \rVert)$, where $h_p = \bigoplus_{v \in V_p} h_{p,v}$. Bundling is computed as an arithmetic sum with no sign threshold; normalization is the separate division by the L2 norm.
+If you encode records as hypervectors (customer profiles, patient records, product listings) some fields will be empty. You don't need the experiments to use what they found:
+
+1. **Normalize each field before you bundle it.** If one person lists three interests and another lists one, a plain bundle lets the first person's interests count three times as much. Bundle a field's values, scale that field to unit length, then bind it to its role. Now every field you know counts the same, whatever it holds.
+2. **Leave missing values out, and compare with cosine.** Don't invent a "missing" vector, and don't treat a blank as a perfect match either. Cosine on normalized fields charges a record a little for what it doesn't know, and that turned out to be the right amount in almost every setting we tried. Treating blanks as neutral let near-empty records take most of the top 10.
+3. **Give rare agreements more weight.** Two people sharing a region (1 in 5 by chance) is weak evidence; sharing three interests (about 1 in 37) is strong. Weight each field by how surprising an agreement is, which you can estimate from random pairs of your own records without labels. Put the weights on the *query*, not the stored records: one index then serves any weighting.
+4. **Store float16, search by dot product.** Normalized vectors lose nothing measurable in float16, which halves storage. Policies that depend only on the stored record (cosine, "missing is a mismatch", a tuned middle ground) are each a single dot product if you scale records when you write them.
+5. **Keep partial credit.** Thresholding each field to ±1 keeps vectors compact but can't tell one shared interest from two. Use L2 normalization when partial matches matter.
+6. **Show coverage next to the score.** A 0.87 from a record that knows two of four fields and a 0.87 from a complete record are different claims. Store how many fields each record knows; it lets you report, filter or rerank on completeness.
+
+**What this doesn't settle:** if missingness *means* something (people who skip "income" differ from those who don't), absence is evidence, and an explicit per-field "missing" token can be the right tool. That trade-off is worth its own section in a practitioner post.
+
+### Ideas for the "what's possible" post
+
+- **Search with your own missing-value policy.** Cosine, mismatch and tuned middle grounds are a write-time scaling choice; neutral (Gower) is a rerank step over the top results.
+- **One index, many weightings.** Different users, tasks or queries can bring their own field weights at query time.
+- **Label-free deduplication.** Weights from random pairs, plus normalized bundles, give a fixed-size vector per record and a matching score that needs no training data.
+- **Auditable results.** Coverage beside every score shows how much of a match is evidence and how much is absence.
+
+## The four experiments
+
+| # | Question | Script | Main output |
+| --- | --- | --- | --- |
+| 1 | Who sets a property's weight: the schema, or how many values a record lists? | `experiment1_weight.py` | `experiment1_ranking.png`, `experiment1_influence.png` |
+| 2 | What should a missing property cost in search: neutral (Gower), partly (cosine), a mismatch, or a fitted pivot (Singhal)? | `experiment2_dial.py` | `experiment2_summary.csv`, `experiment2_dial.png` |
+| 3 | Do informativeness weights (Fellegi–Sunter) find noisy duplicates better than equal weights? | `experiment3_linkage.py` | `experiment3_summary.csv`, `experiment3_linkage.png` |
+| 4 | Do the policies survive real MAP vectors, float16 storage and a single dot product in LanceDB? | `experiment4_build.py` | `experiment4_summary.csv`, `experiment4_build.png` |
+
+Binding uses $\otimes$ and bundling uses $\oplus$. Without normalization a record is $\bigoplus_{p} \bigoplus_{v \in V_p} h_{\mathrm{role},p} \otimes h_{p,v}$; with per-property normalization it is $\bigoplus_{p} h_{\mathrm{role},p} \otimes (h_p / \lVert h_p \rVert)$, where $h_p = \bigoplus_{v \in V_p} h_{p,v}$. Bundling is computed as an arithmetic sum with no sign threshold; normalization is the separate division by the L2 norm. Experiments 2 and 3 score policies exactly (as if atoms were orthogonal); Experiments 1 and 4 use MAP vectors at D = 2,048.
 
 ## Reproduce
 
@@ -23,42 +45,31 @@ From the repository root, after the scale fixture exists in `data/scale/`:
 sh src/missingness/reproduce.sh
 ```
 
-Atoms are regenerated from their seeds with `person.codebook`, so no LanceDB store is needed. They are identical to the atoms the scale study stores in LanceDB, which `src/scale/tests` checks.
+The script regenerates the inputs, runs the tests, all four experiments, the parked pairwise experiment, and the charts. Atoms are regenerated from their seeds with `person.codebook`, identical to those the scale study stores. Experiment 4 writes a LanceDB store of about 2.5 GB to `results/missingness/experiment4.lancedb`; it is gitignored and safe to delete.
 
-## Saved evidence (`results/missingness/`)
+| Module | Role |
+| --- | --- |
+| `person.py` | Records with missing values, MCAR and duplicate loaders, the MAP-I encoder (omit or token), per-property terms, L2 and majority-sign normalization, exact HYP-83 baselines |
+| `policy.py` | Exact per-property similarities, the missing-value policies, Fellegi–Sunter levels and scorers, and the streamed, tie-aware search behind Experiments 2–4 |
+| `experiment1_weight.py` … `experiment4_build.py` | The four experiments |
+| `pairwise.py` | HYP-83's pairwise omit-versus-token experiment (parked) |
+| `charts.py` | Figures as PNG and editable SVG |
+| `tests/` | Orthogonal-atom exactness for both encodings and for the cosine policy, policy denominators, tie-aware ranks against brute force, EM recovery, majority-sign properties, mask rates |
+
+## Saved evidence
+
+Everything below is in `results/missingness/`.
 
 | File | Contents |
 | --- | --- |
-| `normalization.parquet`, `normalization_summary.csv`, `normalization_rankings.csv`, `normalization_config.json`, `experiment5_normalization.png` | The normalization prototype: every (seed, encoding, candidate) cosine next to its exact value, summaries, how often each predicted ranking holds, settings, figure |
-| `pairwise.parquet`, `pairwise_summary.csv`, `experiment2_pairwise.png` | HYP-83's pairwise experiment |
-| `experiment3_missingness_retrieval.csv`, `semantic_shift.csv` | HYP-83's 30%-missing retrieval check (saved tables only) |
+| `experiment1_ranking.parquet`, `experiment1_ranking_summary.csv`, `experiment1_rankings.csv`, `experiment1_influence.csv`, `experiment1_config.json` | Every A_k / B cosine next to its exact value, how often each predicted ranking holds, and the interests' measured share of same-person matches |
+| `experiment2_per_query.parquet`, `experiment2_summary.csv`, `experiment2_slope_curve.csv`, `experiment2_config.json` | Per-query precision, own-copy ranks and top-10 coverage mix per policy; summaries with bootstrap intervals; precision along the pivot slope |
+| `experiment3_per_query.parquet`, `experiment3_summary.csv`, `experiment3_weights.csv`, `experiment3_config.json` | Duplicate ranks per scorer; u, labelled, EM and assumed m with their weights |
+| `experiment4_summary.csv`, `experiment4_sign_cost.csv`, `experiment4_config.json` | Each LanceDB implementation against its exact policy and hidden truth; L2 against majority-sign partial credit; float16 against float32 |
+| `pairwise.parquet`, `pairwise_summary.csv`, `hyp83_pairwise.png`, `hyp83_retrieval.csv`, `hyp83_semantic_shift.csv` | Parked HYP-83 results: omit against null tokens. The retrieval check's code is at commit `450c4e6`. |
 
-File names keep their HYP-83 experiment numbers until HYP-118 settles its own.
+[`EXPERIMENT_UPDATE.md`](EXPERIMENT_UPDATE.md) is the plan behind Experiment 1's ranking comparison, written after David's feedback.
 
-## Prototype methodology: property normalization
+## Scope
 
-The plan, with the reasoning for each choice, is [`EXPERIMENT_UPDATE.md`](EXPERIMENT_UPDATE.md).
-
-**Why.** The current encoder gives each known value one bound fact. Age, job and region each contribute one fact, but a record with three interests contributes three. So the number of listed interests, in the query and in each candidate, sets how much the interests property counts. Cosine divides by each record's overall norm, but that doesn't give every property equal influence.
-
-**Two encodings from the same atoms.** Write $h_p$ for the bundle of property $p$'s known values, $h_p = \bigoplus_{v \in V_p} h_{p,v}$, and $P$ for the record's observed properties.
-
-| Encoding | Record |
-| --- | --- |
-| **without normalization** (the current encoder, omit strategy) | $\bigoplus_{p \in P} \bigoplus_{v \in V_p} h_{\mathrm{role},p} \otimes h_{p,v}$ |
-| **with normalization** | $\bigoplus_{p \in P} h_{\mathrm{role},p} \otimes \big(h_p / \lVert h_p \rVert\big)$ |
-
-In both, bundling is computed as an arithmetic sum with no sign threshold. Normalization is a separate step, dividing a property's bundle by its L2 norm before binding. That preserves the property's direction and gives every observed property a unit-length term. Binding a bipolar role preserves norms, so `encode_normalized` divides each property's bound facts from `encode_sum` by their norm. A property with no known value contributes nothing.
-
-**Records.** These are built directly; the fixture isn't used. The query has an age band, a job, a region and three interests. Candidate **A_k** matches the query on age, job and region and knows the first k ∈ {0, 1, 2, 3} of its interests; the rest are omitted, not encoded as mismatches. Candidate **B** is complete and matches age, region and all three interests, but has a different job. The values themselves are arbitrary: each compared value either matches exactly or comes from an independent atom.
-
-**Expected values** (orthogonal atoms; `normalized_baseline` for the normalized encoding):
-
-| Encoding | A_k | B |
-| --- | --- | --- |
-| without normalization | √((3 + k) / 6) | 5/6 |
-| with normalization | (3 + √(k/3)) / (2√(3 + [k > 0])) | 3/4 |
-
-Without normalization, the query's interests make up half its weight (3 of 6 terms); with normalization, a quarter. With normalization, A_k's interests property earns √(k/3) of the interests credit, so partial knowledge earns partial credit. An unknown property adds nothing to the dot product but also shortens the record, so it costs less than a mismatched property, which adds nothing to the dot product and still contributes to the norm.
-
-**Grid.** D = 2,048, seeds 1–100 with seed 11 as the worked example, float32. Atoms come from `person.codebook`, seeded as in the scale study's LanceDB store, which holds only seeds 11, 23 and 37. For each encoding and each k, `normalization_rankings.csv` reports the predicted winner of A_k versus B, the measured gap, and the share of seeds in which the measured ranking agrees with the prediction.
+The fixture is a controlled factorial state space with four low-cardinality properties, not a sample of people; missingness is completely at random; Experiment 3's value errors are uniform. Results hold for this encoder, fixture and grid. See the report's limits.

@@ -173,7 +173,7 @@ def test_every_known_property_has_unit_norm():
 
 
 def test_normalization_experiment_reproduces_the_plan_predictions():
-    import normalization
+    import experiment1_weight as normalization
 
     ideal = normalization.expected(normalization.build_records()[0])
     # A_0..A_3, then B

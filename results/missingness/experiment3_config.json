@@ -1,0 +1,60 @@
+{
+  "rates": [
+    0.1,
+    0.3,
+    0.5
+  ],
+  "densities": [
+    1.0,
+    0.01
+  ],
+  "k": 10,
+  "error_rate": 0.1,
+  "u_pairs_per_query": 5000,
+  "em_blocks": {
+    "same_region": {
+      "fixes": [
+        "region"
+      ],
+      "estimates": [
+        "age",
+        "job",
+        "interests"
+      ]
+    },
+    "same_job": {
+      "fixes": [
+        "job"
+      ],
+      "estimates": [
+        "region"
+      ]
+    }
+  },
+  "em_block_cap": 500,
+  "em_iterations_max": 500,
+  "smoothing": 0.5,
+  "m_assumed_agree": 0.9,
+  "levels": {
+    "age": [
+      "same",
+      "one_apart",
+      "further"
+    ],
+    "job": [
+      "agree",
+      "disagree"
+    ],
+    "region": [
+      "agree",
+      "disagree"
+    ],
+    "interests": [
+      "all",
+      "some",
+      "none"
+    ]
+  },
+  "queries": "complete evaluation-panel records (400); EM uses the calibration panel (200)",
+  "scores": "exact comparisons (orthogonal atoms)"
+}

@@ -6,5 +6,12 @@
     ""
   ],
   "missing_rate": 0.3,
-  "pairs_per_type": 2000
+  "pairs_per_type": 2000,
+  "mcar_rates": [
+    0.1,
+    0.3,
+    0.5
+  ],
+  "error_rate": 0.1,
+  "training_duplicates": 20000
 }

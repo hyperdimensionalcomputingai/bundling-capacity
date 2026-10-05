@@ -1,5 +1,9 @@
-"""Figures for the parked missingness work: HYP-83 Experiment 2 (pairwise) and the
-HYP-118 Experiment 1 prototype (property normalization)."""
+"""Figures for HYP-118 Experiments 1-4, and HYP-83's parked pairwise experiment.
+
+Static PNG and editable SVG, in the scale study's style. Categorical colours are
+the validated slots 1-5 in fixed order; three of them sit under 3:1 contrast on the
+surface, so every series is labelled directly as well as in a legend.
+"""
 
 from __future__ import annotations
 
@@ -11,12 +15,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import polars as pl
+from matplotlib.ticker import PercentFormatter
 
 import pairwise
 import person
 
-# Categorical slots 1-3 (validated; aqua is under 3:1 contrast, so every line is labelled directly).
-BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+# Categorical slots 1-5, validated together (CVD and normal-vision separation pass; aqua,
+# yellow and magenta are under 3:1 contrast, so every series is labelled directly).
+BLUE, ORANGE, AQUA, YELLOW, MAGENTA = "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"
+RAMP = ("#86b6ef", "#3987e5", "#1c5cab")  # one-hue ordinal ramp for 1, 2, 3 listed interests
 INK, MUTED, SURFACE, GRID = "#0b0b0b", "#52514e", "#fcfcfb", "#e4e3df"
 
 
@@ -77,7 +84,7 @@ PAIRWISE = (
 )
 
 
-def experiment2(summary: pl.DataFrame, out: Path, dimension: int = 2048):
+def hyp83_pairwise(summary: pl.DataFrame, out: Path, dimension: int = 2048):
     fig, axes = plt.subplots(1, 2, figsize=(12.6, 5.4), sharey=True)
     fig.subplots_adjust(left=0.07, right=0.86, top=0.78, bottom=0.17, wspace=0.1)
     header(
@@ -136,7 +143,7 @@ def experiment2(summary: pl.DataFrame, out: Path, dimension: int = 2048):
         f"D = {dimension:,} · 2,000 pairs per type × {len(pairwise.SEEDS)} seeds · interests always present, so a "
         "complete record has 6 facts · the three single-spelling tokens coincide by construction",
     )
-    save(fig, out / "experiment2_pairwise")
+    save(fig, out / "hyp83_pairwise")
 
 
 NORMALIZATION = (
@@ -145,7 +152,7 @@ NORMALIZATION = (
 )
 
 
-def experiment5(summary: pl.DataFrame, out: Path):
+def experiment1_ranking(summary: pl.DataFrame, out: Path):
     fig, ax = plt.subplots(figsize=(9.6, 5.6))
     fig.subplots_adjust(left=0.1, right=0.74, top=0.8, bottom=0.17)
     header(
@@ -199,7 +206,249 @@ def experiment5(summary: pl.DataFrame, out: Path):
         f"D = 2,048 · lines: exact value with orthogonal atoms · markers: mean of {summary['seeds'][0]} "
         "seeds (bars and bands: seed range) · A matches age, job and region; unknown interests are omitted",
     )
-    save(fig, out / "experiment5_normalization")
+    save(fig, out / "experiment1_ranking")
+
+
+def experiment1_influence(shares: pl.DataFrame, out: Path):
+    fig, axes = plt.subplots(1, 2, figsize=(12.4, 5.2), sharey=True)
+    fig.subplots_adjust(left=0.08, right=0.87, top=0.78, bottom=0.17, wspace=0.3)
+    header(
+        fig,
+        "Without normalization, listing more interests makes interests count for more",
+        "Share of a same-person match supplied by the interests property; age, job and region "
+        "known on both sides",
+    )
+    for ax, (encoding, title, _) in zip(axes, NORMALIZATION):
+        part = shares.filter(pl.col("encoding") == encoding)
+        for n_q, color in zip((1, 2, 3), RAMP):
+            rows = part.filter(pl.col("query_interests") == n_q).sort("candidate_interests")
+            k = rows["candidate_interests"].to_numpy()
+            ax.plot(k, rows["expected_share"], color=color, linewidth=1.6)
+            ax.plot(
+                k,
+                rows["measured_share"],
+                "o",
+                color=color,
+                markersize=7,
+                markeredgecolor="white",
+                markeredgewidth=0.8,
+                label=f"query lists {n_q}",
+            )
+            ax.text(
+                3.12, rows["measured_share"][-1], f"query lists {n_q}", va="center", fontsize=9.5
+            )
+        ax.axhline(0.25, color=MUTED, linestyle=(0, (4, 3)), linewidth=1.1)
+        ax.text(1.0, 0.255, "one of four properties", color=MUTED, fontsize=9, va="bottom")
+        ax.set_xticks([1, 2, 3])
+        ax.set_xlim(0.85, 3.1)
+        ax.set_title(title, loc="left", fontsize=11, pad=10)
+        ax.set_xlabel("Interests the candidate lists", labelpad=8)
+        ax.yaxis.set_major_formatter(PercentFormatter(1, decimals=0))
+        frame_axes(ax)
+    axes[0].set_ylabel("Interests' share of the match", labelpad=8)
+    footnote(
+        fig,
+        f"D = 2,048 · lines: exact value with orthogonal atoms · markers: mean over "
+        f"{int(shares['seeds'][0])} seeds × 500 records · both sides list their first interests, so "
+        "the shorter list is shared",
+    )
+    save(fig, out / "experiment1_influence")
+
+
+POLICY_STYLE = {
+    "cosine": ("cosine", BLUE),
+    "mismatch": ("mismatch", ORANGE),
+    "gower": ("Gower", AQUA),
+    "pivoted_fitted": ("pivoted (fitted)", YELLOW),
+    "relevance": ("relevant records", MUTED),
+}
+
+
+def experiment2_dial(curve: pl.DataFrame, summary: pl.DataFrame, out: Path, rate: float = 0.3):
+    fig, (left, right) = plt.subplots(
+        1, 2, figsize=(12.6, 5.4), gridspec_kw={"width_ratios": [1.1, 1]}
+    )
+    fig.subplots_adjust(left=0.07, right=0.97, top=0.78, bottom=0.17, wspace=0.28)
+    header(
+        fig,
+        "Treating missing values as neutral floods search with sparse records",
+        f"{rate:.0%} of values missing at random. Left: precision@10 along Singhal's pivot "
+        "(1 = cosine). Right: what the top 10 is made of, 1% pool",
+    )
+    densities = (
+        (1.0, "full pool", RAMP[2]),
+        (0.1, "10% pool", RAMP[1]),
+        (0.01, "1% pool", RAMP[0]),
+    )
+    # Labels sit just above or below each line's left end, where the lines are furthest apart.
+    offsets = {1.0: 0.012, 0.1: -0.012, 0.01: 0.012}
+    for density, label, color in densities:
+        rows = curve.filter(
+            (pl.col("rate") == rate)
+            & (pl.col("density") == density)
+            & (pl.col("panel") == "evaluation")
+        ).sort("slope")
+        left.plot(rows["slope"], rows["precision_at_10"], color=color, marker="o", markersize=4)
+        dy = offsets[density]
+        left.text(
+            0.02,
+            rows["precision_at_10"][0] + dy,
+            label,
+            fontsize=9.5,
+            va="bottom" if dy > 0 else "top",
+        )
+    left.axvline(1, color=MUTED, linestyle=(0, (4, 3)), linewidth=1.1)
+    left.text(1.02, 0.02, "cosine", color=MUTED, fontsize=9, transform=left.get_xaxis_transform())
+    left.text(0.0, 0.02, "mismatch", color=MUTED, fontsize=9, transform=left.get_xaxis_transform())
+    left.set_xlim(-0.05, 1.7)
+    left.set_xticks([0, 0.5, 1, 1.5])
+    left.set_ylim(0, None)
+    left.yaxis.set_major_formatter(PercentFormatter(1))
+    left.set_xlabel("Pivot slope (above 1: missing values count less)", labelpad=8)
+    left.set_ylabel("Precision@10 against the hidden complete records", labelpad=8)
+    frame_axes(left)
+
+    cell = summary.filter((pl.col("rate") == rate) & (pl.col("density") == 0.01))
+    bars = [
+        ("relevance", cell["relevant_share_complete"][0], cell["relevant_share_one_property"][0])
+    ]
+    for policy in ("mismatch", "cosine", "pivoted_fitted", "gower"):
+        row = cell.filter(pl.col("policy") == policy)
+        bars.append((policy, row["top10_share_complete"][0], row["top10_share_one_property"][0]))
+    y = list(range(len(bars)))[::-1]
+    for yi, (policy, complete, one) in zip(y, bars):
+        label, color = POLICY_STYLE[policy]
+        right.barh(yi, complete, color=color, height=0.55)
+        right.text(
+            complete + 0.015,
+            yi,
+            f"{complete:.0%} complete · {one:.0%} one property",
+            va="center",
+            fontsize=9,
+        )
+    right.set_yticks(y)
+    right.set_yticklabels([POLICY_STYLE[p][0] for p, *_ in bars])
+    right.set_xlim(0, 1.45)
+    right.set_xticks([0, 0.5, 1])
+    right.xaxis.set_major_formatter(PercentFormatter(1))
+    right.set_xlabel("Share of top-10 slots held by complete records (1% pool)", labelpad=8)
+    right.grid(axis="x")
+    right.set_axisbelow(True)
+    right.tick_params(length=0, pad=6)
+    footnote(
+        fig,
+        "400 complete queries · relevant = top 10 by equal-weight similarity of the complete records "
+        "(ties shared) · exact policy scores · pivot slope fitted on a separate 200-query panel",
+    )
+    save(fig, out / "experiment2_dial")
+
+
+SCORER_STYLE = (
+    ("cosine", "cosine (equal weights)", BLUE),
+    ("fs_known", "Fellegi-Sunter, labelled m", ORANGE),
+    ("fs_em", "Fellegi-Sunter, EM m", AQUA),
+    ("fs_linear", "linear Fellegi-Sunter", YELLOW),
+    ("cosine_weighted", "cosine + informativeness weights", MAGENTA),
+)
+
+
+def experiment3_linkage(summary: pl.DataFrame, out: Path):
+    fig, axes = plt.subplots(1, 2, figsize=(12.6, 5.4))
+    fig.subplots_adjust(left=0.07, right=0.8, top=0.78, bottom=0.17, wspace=0.2)
+    header(
+        fig,
+        "Weight by informativeness, but keep cosine's treatment of missing values",
+        "Recall@1 of each query person's noisy duplicate (10% of values wrong), by share of values missing",
+    )
+    for ax, (density, title) in zip(
+        axes, ((1.0, "Full pool, 920,000 records"), (0.01, "1% pool, about 9,800 records"))
+    ):
+        part = summary.filter(pl.col("density") == density)
+        for scorer, label, color in SCORER_STYLE:
+            rows = part.filter(pl.col("scorer") == scorer).sort("rate")
+            ax.plot(
+                rows["rate"],
+                rows["recall_at_1"],
+                color=color,
+                marker="o",
+                markersize=6,
+                markeredgecolor="white",
+                markeredgewidth=0.8,
+                label=label,
+            )
+        ax.set_xticks([0.1, 0.3, 0.5])
+        ax.xaxis.set_major_formatter(PercentFormatter(1, decimals=0))
+        ax.yaxis.set_major_formatter(PercentFormatter(1, decimals=0))
+        ax.set_ylim(0, None)
+        ax.set_xlabel("Values missing at random", labelpad=8)
+        ax.set_title(title, loc="left", fontsize=11, pad=10)
+        frame_axes(ax)
+    axes[0].set_ylabel("Recall@1", labelpad=8)
+    handles, labels = axes[1].get_legend_handles_labels()
+    fig.legend(
+        handles, labels, frameon=False, loc="center left", bbox_to_anchor=(0.805, 0.5), fontsize=9.5
+    )
+    footnote(
+        fig,
+        "400 complete queries · exact comparisons · Fellegi-Sunter scores a missing property as 0 "
+        "(neutral); the cosine scorers divide by sqrt(p_q · p_c)",
+    )
+    save(fig, out / "experiment3_linkage")
+
+
+BUILD_LABELS = {
+    "cosine_f32": "cosine, float32",
+    "cosine_f16": "cosine, float16",
+    "weighted_f16": "cosine + query weights, float16",
+    "mismatch_f16": "mismatch, float16",
+    "pivoted_f16": "pivoted (s = 1.2), float16",
+    "sign_f16": "majority-sign cosine, float16",
+    "gower_rerank": "Gower rerank of cosine top 100",
+}
+
+
+def experiment4_build(summary: pl.DataFrame, out: Path):
+    fig, ax = plt.subplots(figsize=(10.4, 5.2))
+    fig.subplots_adjust(left=0.3, right=0.95, top=0.78, bottom=0.17)
+    header(
+        fig,
+        "One stored index, a dot product, and float16 serve the useful policies",
+        "Precision@10 of LanceDB flat search over MAP vectors (bars) and of the exact policy it "
+        "implements (ticks)",
+    )
+    order = [k for k in BUILD_LABELS if k in summary["implementation"].to_list()]
+    y = list(range(len(order)))[::-1]
+    for yi, name in zip(y, order):
+        row = summary.filter(pl.col("implementation") == name)
+        color = MAGENTA if name == "weighted_f16" else AQUA if name == "gower_rerank" else BLUE
+        ax.barh(yi, row["precision_at_10"][0], color=color, height=0.55)
+        ax.plot(
+            [row["exact_policy_precision_at_10"][0]] * 2,
+            [yi - 0.36, yi + 0.36],
+            color=INK,
+            linewidth=1.6,
+        )
+        ax.text(
+            max(row["precision_at_10"][0], row["exact_policy_precision_at_10"][0]) + 0.008,
+            yi,
+            f"{row['precision_at_10'][0]:.1%} · agrees with exact top 10 {row['agreement_with_exact_top10'][0]:.0%}",
+            va="center",
+            fontsize=9,
+        )
+    ax.set_yticks(y)
+    ax.set_yticklabels([BUILD_LABELS[n] for n in order])
+    ax.set_xlim(0, 0.62)
+    ax.xaxis.set_major_formatter(PercentFormatter(1))
+    ax.set_xlabel("Precision@10 against the hidden complete records", labelpad=8)
+    ax.grid(axis="x")
+    ax.set_axisbelow(True)
+    ax.tick_params(length=0, pad=6)
+    footnote(
+        fig,
+        "D = 2,048, seed 11 · first 100,000 records, 30% missing at random · 400 complete queries · "
+        "float16 and float32 return the same top 10 for 96.5% of queries",
+    )
+    save(fig, out / "experiment4_build")
 
 
 def main():
@@ -207,8 +456,17 @@ def main():
     parser.add_argument("--output-dir", type=Path, default=person.OUT)
     out = parser.parse_args().output_dir
     style()
-    experiment2(pl.read_csv(out / "pairwise_summary.csv"), out)
-    experiment5(pl.read_csv(out / "normalization_summary.csv"), out)
+    experiment1_ranking(pl.read_csv(out / "experiment1_ranking_summary.csv"), out)
+    experiment1_influence(pl.read_csv(out / "experiment1_influence.csv"), out)
+    experiment2_dial(
+        pl.read_csv(out / "experiment2_slope_curve.csv"),
+        pl.read_csv(out / "experiment2_summary.csv"),
+        out,
+    )
+    experiment3_linkage(pl.read_csv(out / "experiment3_summary.csv"), out)
+    if (out / "experiment4_summary.csv").exists():
+        experiment4_build(pl.read_csv(out / "experiment4_summary.csv"), out)
+    hyp83_pairwise(pl.read_csv(out / "pairwise_summary.csv"), out)
     print(f"Saved figures in {out}")
 
 

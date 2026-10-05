@@ -1,0 +1,8 @@
+implementation,exact_policy,agreement_with_exact_top10,precision_at_10,exact_policy_precision_at_10,median_latency_ms,storage_mb
+cosine_f32,cosine,0.96475,0.34300,0.34693,61.02283,819.54490
+cosine_f16,cosine,0.96500,0.34300,0.34693,31.02304,410.19477
+mismatch_f16,mismatch,0.92200,0.34700,0.34894,31.26142,410.19477
+pivoted_f16,pivoted,0.89950,0.32700,0.32372,31.05013,410.19477
+sign_f16,cosine,0.78150,0.29800,0.34693,31.10700,410.19477
+weighted_f16,weighted,0.94175,0.35300,0.35497,31.22017,410.19477
+gower_rerank,gower,0.23800,0.13200,0.00356,31.88845,410.19477
