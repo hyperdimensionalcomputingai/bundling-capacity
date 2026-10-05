@@ -143,6 +143,8 @@ The project uses IVF_PQ only. An earlier run also indexed the unit-length vector
 
 **Measures.** Recall@10 against exact flat search over the same stored float16 vectors under the same metric, tie-aware (a returned record counts when its exact score reaches the exact 10th best); precision@10 against hidden-truth relevance for every setting, for exact flat search over the same vectors, and for the exact policy with orthogonal atoms; the index's score error; median latency for context. Partly-null records often encode to identical vectors (54% of records at 30% missingness share their vector with another record), so ties are common and handled as above.
 
+**Metric check.** On 100,000 of the same vectors and 200 queries, without refinement at 20 probes: IVF_PQ trained for cosine, L2 and dot on the unit-length vectors, whose exact rankings are identical under all three; and, for the pivoted vectors, a dot index against an L2 index on vectors augmented with √(M² − ‖x‖²) (the query gets 0), which makes L2 distance rank like the inner product (Bachrach et al., 2014). Saved in `experiment5_metric_check.csv`.
+
 **Normalizer check.** A cosine metric divides by each MAP vector's realized norm, which carries cross-term noise (a complete record's norm is 2.007 ± 0.029 at D = 2,048, against an ideal of 2). Dividing by √(populated fields) instead is exact. Flat search both ways is compared at six settings (`experiment5_normalizer.csv`).
 
 ## Uncertainty and scope

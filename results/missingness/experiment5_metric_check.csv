@@ -1,0 +1,6 @@
+vectors,index,recall_at_10,pool_size,queries,nprobes,refine_factor
+unit length,IVF_PQ cosine,0.79300,99939,200,20,
+unit length,IVF_PQ l2,0.77100,99939,200,20,
+unit length,IVF_PQ dot,0.43000,99939,200,20,
+varying length (pivoted),IVF_PQ dot,0.56400,99939,200,20,
+varying length (pivoted),IVF_PQ l2 on MIPS-to-L2 augmented vectors,0.69400,99939,200,20,

@@ -27,7 +27,7 @@ A quick refresher on the vocabulary: each field value (a job, a region, an inter
 
 6. **Store unit-length vectors as float16.** It halves storage and changed almost nothing in our tests (the same top 10 as float32 for 96.5% of queries).
 7. **Store how many fields each record has filled in, next to the vector.** A score of 0.87 from a record that knows two of four fields means something different from 0.87 from a complete record. Keeping this count lets you show it, filter on it or rerank with it.
-8. **Index with IVF_PQ trained for cosine, and always turn on refinement.** A LanceDB index is trained for one distance metric, so train it with the one you search with. Set `refine_factor` to about 50: without it, the index returned 70% of the true top 10; with it, about 94%, and those results were just as relevant as an exact search.
+8. **Index with IVF_PQ trained for cosine, and always turn on refinement.** A LanceDB index is trained for one distance metric, so train it with the one you search with. For unit-length vectors use cosine (L2 works as well), not dot: a dot index on the same vectors found far fewer of the true top 10 (43% against 79% without refinement). Set `refine_factor` to about 50: without it, the cosine index returned about 70% of the true top 10; with it, about 94%, and those results were just as relevant as an exact search. If you ever need vectors of varying length, append one extra coordinate so you can use an L2 index instead of a dot index (the report shows how).
 9. **Expect many records to share the same vector.** Records with the same known fields encode identically: with 30% of values missing, more than half of our records had an exact twin. Group them under one key and break ties by record ID or by how complete each record is.
 
 ## When a blank field means something
@@ -105,7 +105,7 @@ This regenerates the inputs, runs the tests, the five experiments, the parked HY
 | `experiment2_*` | Per-query precision, own-copy ranks and top-10 coverage mix per policy; summaries with bootstrap intervals; precision along the pivot slope |
 | `experiment3_*` | Duplicate ranks per scorer; u, labelled, EM and assumed m with their weights |
 | `experiment4_*` | Each LanceDB implementation against its exact policy and hidden truth; L2 against majority-sign partial credit; float16 against float32 |
-| `experiment5_summary.csv`, `experiment5_normalizer.csv`, `experiment5_config.json` | Every IVF_PQ setting against exact search and hidden truth; realized-norm against field-count normalization; resolved index settings |
+| `experiment5_summary.csv`, `experiment5_normalizer.csv`, `experiment5_metric_check.csv`, `experiment5_config.json` | Every IVF_PQ setting against exact search and hidden truth; realized-norm against field-count normalization; cosine, L2 and dot indexes compared, plus the MIPS-to-L2 reduction; resolved index settings |
 | `experiment5_rabitq.csv` | IVF_RQ (RaBitQ) results from an earlier run, kept for the record; the code is at commit `f194888` |
 | `pairwise*`, `hyp83_*` | Parked HYP-83 results: leaving blanks out against null tokens. The retrieval check's code is at commit `450c4e6`. |
 

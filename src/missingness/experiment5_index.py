@@ -221,6 +221,117 @@ def normalizer_check(log=print) -> pl.DataFrame:
     )
 
 
+# Metric check: why the dot-trained index does worse. On unit-length vectors, cosine, L2
+# and dot give the same exact ranking, so any recall difference comes from how the
+# index handles each metric. For varying-length vectors (maximum inner product search),
+# a dot index is compared with the standard reduction to L2: append
+# sqrt(M^2 - |x|^2) to every stored vector and 0 to the query, so that L2 distance
+# ranks exactly like inner product (Bachrach et al., 2014). A 100,000-record slice
+# keeps it quick; 20 probes, no refinement, so only the index's own scoring is tested.
+METRIC_CHECK_POOL = 100_000
+METRIC_CHECK_QUERIES = 200
+
+
+def metric_check(log=print) -> pl.DataFrame:
+    """Recall@10 without refinement for cosine, L2 and dot indexes, and the MIPS-to-L2 reduction."""
+    import tempfile
+
+    signatures = person.load_fixture()
+    pool = person.mcar_records(signatures, RATE).take(slice(0, METRIC_CHECK_POOL))
+    pool = pool.take(torch.nonzero(P.known(pool)[0].sum(1) > 0).flatten())
+    queries = person.complete_records(signatures).take(
+        person.query_panel("evaluation")[:METRIC_CHECK_QUERIES]
+    )
+    book = person.codebook(DIMENSION, SEED)
+    h = torch.cat(
+        [
+            person.encode_normalized(book, pool.take(slice(s, s + CHUNK)))
+            for s in range(0, len(pool), CHUNK)
+        ]
+    )
+    coverage = P.known(pool)[0].sum(1).float()
+    pivot = float(coverage.sqrt().mean())
+    unit = stored(h / h.norm(dim=1, keepdim=True))
+    pivoted = stored(h / ((1 - SLOPE) * pivot + SLOPE * coverage.sqrt())[:, None])
+    q = person.encode_normalized(book, queries)
+    q = q / q.norm(dim=1, keepdim=True)
+    partitions = round(len(pool) ** 0.5)
+
+    def recall(vectors, query_vectors, metric, exact) -> float:
+        db = lancedb.connect(tempfile.mkdtemp())
+        dim = vectors.shape[1]
+        flat = pa.array(vectors.half().contiguous().reshape(-1).numpy(), type=pa.float16())
+        table = db.create_table(
+            "t",
+            pa.table(
+                {
+                    "id": pa.array(range(len(vectors))),
+                    "vector": pa.FixedSizeListArray.from_arrays(flat, dim),
+                }
+            ),
+        )
+        table.create_index(
+            "vector",
+            config=IvfPq(
+                distance_type=metric, num_partitions=partitions, num_sub_vectors=dim // 16
+            ),
+        )
+        kth = exact.topk(K, 1).values[:, -1]
+        hits = []
+        for i, x in enumerate(query_vectors):
+            ids = (
+                table.search(x.tolist())
+                .distance_type(metric)
+                .nprobes(20)
+                .limit(K)
+                .select(["id"])
+                .to_arrow()
+            )
+            idx = torch.tensor(ids["id"].to_pylist(), dtype=torch.long)
+            hits.append(float((exact[i, idx] >= kth[i] - 1e-6).float().mean()))
+        return sum(hits) / len(hits)
+
+    rows = []
+    exact_unit = q @ unit.T
+    for metric in ("cosine", "l2", "dot"):
+        rows.append(
+            {
+                "vectors": "unit length",
+                "index": f"IVF_PQ {metric}",
+                "recall_at_10": recall(unit, q, metric, exact_unit),
+            }
+        )
+    exact_pivoted = q @ pivoted.T
+    rows.append(
+        {
+            "vectors": "varying length (pivoted)",
+            "index": "IVF_PQ dot",
+            "recall_at_10": recall(pivoted, q, "dot", exact_pivoted),
+        }
+    )
+    norms = pivoted.norm(dim=1)
+    extra = (norms.max() ** 2 - norms**2).clamp(min=0).sqrt()[:, None]
+    augmented = torch.cat(
+        [pivoted, extra, torch.zeros(len(pivoted), 15)], 1
+    )  # pad to a multiple of 16
+    q_augmented = torch.cat([q, torch.zeros(len(q), 16)], 1)
+    rows.append(
+        {
+            "vectors": "varying length (pivoted)",
+            "index": "IVF_PQ l2 on MIPS-to-L2 augmented vectors",
+            "recall_at_10": recall(augmented, q_augmented, "l2", exact_pivoted),
+        }
+    )
+    for r in rows:
+        log(f"metric check: {r}")
+    return pl.DataFrame(rows).with_columns(
+        pool_size=pl.lit(len(pool)),
+        queries=pl.lit(len(q)),
+        nprobes=pl.lit(20),
+        refine_factor=pl.lit(None),
+    )
+
+
 def run(out: Path, log=print):
     signatures = person.load_fixture()
     complete_all = person.complete_records(signatures)
@@ -314,6 +425,7 @@ def run(out: Path, log=print):
     )
     summary.write_csv(out / "experiment5_summary.csv", float_precision=5)
     normalizer_check(log).write_csv(out / "experiment5_normalizer.csv", float_precision=5)
+    metric_check(log).write_csv(out / "experiment5_metric_check.csv", float_precision=5)
     (out / "experiment5_config.json").write_text(
         json.dumps(
             {
