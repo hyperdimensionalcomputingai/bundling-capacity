@@ -111,13 +111,15 @@ Experiment 4 searched exactly. At 920,000 records with 30% of values missing, we
 | IVF_PQ, cosine, unit vectors | 70.1% | 94.0% | 94.6% | 94.7% |
 | IVF_PQ, dot, the same unit vectors | 43.7% | 89.9% | 94.1% | 94.1% |
 | IVF_PQ, dot, pivoted scaling | 51.9% | 89.3% | 92.0% | 92.0% |
-| IVF_RQ (RaBitQ, 1 bit), cosine | 10.7% | 11.6% | 11.6% | 16.2% |
+| IVF_RQ (RaBitQ, 1 bit), cosine, earlier run* | 10.7% | 11.6% | 11.6% | 16.2% |
+
+\* The project uses IVF_PQ only, so RaBitQ is no longer part of the experiment or the figure. Its results from an earlier run are kept in `experiment5_rabitq.csv`; the code is at commit `f194888`.
 
 - **Train with the metric you search with, and on unit vectors that means cosine.** LanceDB documents dot as equivalent to cosine for unit vectors, and it is for exact search, but a dot-trained PQ index returned 44% of the exact top 10 without refinement, against 70% for a cosine-trained one.
 - **Always refine; 10–50 is enough.** Without refinement, PQ's compressed scores reorder near-ties, and probing more partitions changes nothing (70.1% at 10 probes and at 100). Refining with the stored vectors lifts recall to 94–95%, and refining more than 50 adds nothing.
 - **The remaining 5% are swaps, not mistakes.** With refinement, precision against the hidden complete records (57.9–58.2%) equals exact flat search over the same vectors (57.9%). The misses are equally good records, many of them exact duplicates: at 30% nulls, 54% of records encode to the same vector as another record. That is also why recall plateaus below the scale study's 99.5% on complete records.
 - **A non-unit scaling works with a dot-trained index**, at slightly lower recall (91–94% refined, depending on probes).
-- **RaBitQ failed here.** IVF_RQ with LanceDB's defaults returned under 30% of the exact top 10 in every setting, even though it beat IVF_PQ on random unit vectors in the same LanceDB version. We haven't diagnosed why.
+- **RaBitQ failed here (earlier run).** IVF_RQ with LanceDB's defaults returned under 30% of the exact top 10 in every setting, even though it beat IVF_PQ on random unit vectors in the same LanceDB version. We haven't diagnosed why, and we use IVF_PQ only.
 
 **A note on cosine and MAP noise.** A cosine metric divides by each vector's *realized* norm, which carries MAP cross-term noise (about 1.4% at D = 2,048). Storing each record divided by √(populated fields) instead, and searching by dot product, is exact. In the full factorial pool that raised precision by 6.6 points at 30% nulls and by 11.6 at 10%. But the gain shrank to 1.3 points at D = 8,192 and vanished, or reversed slightly, at 50% nulls and in the 10% and 1% pools. It is a noise effect in this unusually dense fixture, not a general reason to leave the cosine metric.
 
@@ -135,7 +137,7 @@ Experiment 4 searched exactly. At 920,000 records with 30% of values missing, we
 
 ## Reproducing this
 
-`sh src/missingness/reproduce.sh` regenerates the inputs, runs the tests and all five experiments, and redraws the figures. Experiments 4 and 5 write LanceDB stores of about 2.5 GB and 15 GB, both gitignored.
+`sh src/missingness/reproduce.sh` regenerates the inputs, runs the tests and all five experiments, and redraws the figures. Experiments 4 and 5 write LanceDB stores of about 2.5 GB and 11 GB, both gitignored.
 
 ## Limits
 

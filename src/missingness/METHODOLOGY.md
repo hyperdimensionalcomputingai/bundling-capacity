@@ -134,9 +134,10 @@ Experiment 4 searched exactly; the scale study tested IVF_PQ only on complete, u
 | unit_cosine | unit length | IVF_PQ, cosine |
 | unit_dot | unit length | IVF_PQ, dot (documented as equivalent to cosine for unit vectors) |
 | pivoted_dot | scaled by Singhal's pivoted length (s = 1.2), so norms vary with coverage | IVF_PQ, dot |
-| unit_cosine_rq | unit length | IVF_RQ (RaBitQ), cosine |
 
-**Index settings.** LanceDB's documented defaults, with the two that size the index set explicitly so they match the scale study and can't drift between versions: num_partitions = round(√rows) = 959 and num_sub_vectors = D / 16 = 128. PQ codes are 8 bits; RaBitQ uses its default 1 bit per dimension; k-means runs 50 iterations on 256 × partitions sampled vectors.
+**Index settings.** LanceDB's documented defaults, with the two that size the index set explicitly so they match the scale study and can't drift between versions: num_partitions = round(√rows) = 959 and num_sub_vectors = D / 16 = 128. PQ codes are 8 bits; k-means runs 50 iterations on 256 × partitions sampled vectors.
+
+The project uses IVF_PQ only. An earlier run also indexed the unit-length vectors with IVF_RQ (RaBitQ, LanceDB's default 1 bit per dimension, cosine, same partitions and sweep). Its results are kept in `experiment5_rabitq.csv`, and its code is at commit `f194888`.
 
 **Sweep.** nprobes ∈ {10, 20, 50, 100} × refine_factor ∈ {none, 10, 50, 200}.
 

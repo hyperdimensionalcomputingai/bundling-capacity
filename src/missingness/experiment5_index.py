@@ -15,8 +15,10 @@ So each configuration gets its own metric-matched index:
                       dot as equivalent to cosine for unit vectors
   C  pivoted_dot      vectors scaled by Singhal's pivoted length (s = 1.2), so norms
                       vary by coverage; IVF_PQ with dot, the metric this policy needs
-  D  unit_cosine_rq   the same unit-length vectors with IVF_RQ (RaBitQ, 1 bit per
-                      dimension, LanceDB's default), cosine
+
+The project uses IVF_PQ only. An earlier run of this experiment also tested IVF_RQ
+(RaBitQ) on the unit-length vectors; its results are kept in experiment5_rabitq.csv
+and its code is at commit f194888.
 
 Index settings are LanceDB's documented defaults, with the two that size the index
 set explicitly so they can't drift between versions and match the scale study's
@@ -46,7 +48,7 @@ import lancedb
 import polars as pl
 import pyarrow as pa
 import torch
-from lancedb.index import IvfPq, IvfRq
+from lancedb.index import IvfPq
 
 import person
 import policy as P
@@ -255,12 +257,6 @@ def run(out: Path, log=print):
         ("unit_cosine", "unit", "cosine", pq("cosine")),
         ("unit_dot", "unit", "dot", pq("dot")),
         ("pivoted_dot", "pivoted", "dot", pq("dot")),
-        (
-            "unit_cosine_rq",
-            "unit",
-            "cosine",
-            IvfRq(distance_type="cosine", num_partitions=partitions),
-        ),
     )
     rows, settings, flat = [], {}, {}
     for name, enc, metric, config in configs:
@@ -308,7 +304,6 @@ def run(out: Path, log=print):
     policy_of = {
         "unit_cosine": "unit_cosine",
         "unit_dot": "unit_cosine",
-        "unit_cosine_rq": "unit_cosine",
         "pivoted_dot": "pivoted_dot",
     }
     summary = summary.with_columns(
@@ -333,7 +328,7 @@ def run(out: Path, log=print):
                 "ground_truth": "exact search over the same stored float16 vectors, same metric; recall ties count as hits",
                 "num_partitions": partitions,
                 "num_sub_vectors": sub_vectors,
-                "index_defaults": "8-bit PQ codes, 1-bit RQ codes, 50 k-means iterations, sample rate 256 (LanceDB defaults)",
+                "index_defaults": "8-bit PQ codes, 50 k-means iterations, sample rate 256 (LanceDB defaults)",
                 "indexes": settings,
                 "latency": "single-threaded Python loop, warm cache; context only",
                 "lancedb_version": lancedb.__version__,

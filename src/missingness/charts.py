@@ -455,7 +455,6 @@ INDEX_STYLE = (
     ("unit_cosine", "IVF_PQ, cosine (unit vectors)", BLUE),
     ("unit_dot", "IVF_PQ, dot (unit vectors)", ORANGE),
     ("pivoted_dot", "IVF_PQ, dot (pivoted scaling)", AQUA),
-    ("unit_cosine_rq", "IVF_RQ, cosine (unit vectors)", YELLOW),
 )
 
 
@@ -465,7 +464,7 @@ def experiment5_index(summary: pl.DataFrame, out: Path):
     header(
         fig,
         "Train the index with the search metric, and always refine",
-        "Recall@10 of LanceDB IVF indexes against exact search over the same vectors, "
+        "Recall@10 of LanceDB IVF_PQ indexes against exact search over the same vectors, "
         "920,000 records with 30% of values missing",
     )
     for ax, refine in zip(axes, (None, 10, 50, 200)):
@@ -510,7 +509,7 @@ def experiment5_index(summary: pl.DataFrame, out: Path):
     footnote(
         fig,
         "D = 2,048, seed 11, float16 · 400 complete queries · each index trained and searched with "
-        "one metric · 128 PQ sub-vectors, 8-bit codes; RaBitQ 1 bit per dimension",
+        "one metric · 128 PQ sub-vectors, 8-bit codes",
     )
     save(fig, out / "experiment5_index")
 
