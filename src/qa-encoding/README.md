@@ -1,6 +1,6 @@
 # Ordered MAP bundle experiment
 
-This is the implementation of [QA_ENCODING_EXPERIMENT_PLAN.md](../../QA_ENCODING_EXPERIMENT_PLAN.md). It measures scored-answer recovery, whole-profile geometry, and whether similar profiles remain close while adding 5 to 50 facts to a single MAP bundle. The 50 item keys and one ordered five-level answer scale are reused across every profile at a given dimension and seed.
+This study measures scored-answer recovery, whole-profile geometry, and whether similar profiles remain close while adding 5 to 50 facts to a single MAP bundle. The 50 item keys and one ordered five-level answer scale are reused across every profile at a given dimension and seed.
 
 ## Reproduce
 
@@ -32,10 +32,10 @@ The run checks the Q19/Q49 scoring example, the five-level geometry, storage sch
 | `perturbation_summary.csv`, `perturbation_design.json` | Whole-bundle and ideal answer-level cosine by width, plus the study settings. |
 | `perturbation_distinct_profiles.csv` | Context from pairs of different synthetic profiles, grouped by raw answer difference. |
 
-The analysis uses 465 unique profile pairs per condition. Spearman correlation compares the ordering of all pairs, with average ranks for ties. Nearest-neighbor agreement and three-neighbor overlap are computed for each of the 31 profiles, with respondent order breaking exact ties. The two references compare responses at **matching item positions**. Reversing both profiles' responses on the same item leaves absolute difference unchanged.
+The analysis uses 465 unique profile pairs per condition. Spearman correlation compares the ordering of all pairs, with average ranks for ties. Nearest-neighbour agreement and three-neighbour overlap are computed for each of the 31 profiles, with respondent order breaking exact ties. The two references compare responses at **matching item positions**. Reversing both profiles' responses on the same item leaves absolute difference unchanged.
 
 The perturbation study fixes the dimension at 4,096 and uses widths 5, 10, 20, 40, and 50. It changes exactly 20% of raw answers by one level for similar pairs and 60% for a farther control, then re-scores and compares whole bundles. Variants are shared across five MAP seeds, and each profile contributes equal weight within a condition and width. The question is whether the similarity of the 20%-changed pairs falls as more facts enter the bundle.
 
-Figures are available as PNG and editable SVG: [answer recovery](../../results/qa-encoding/recovery.png), [profile geometry](../../results/qa-encoding/profile_geometry.png), and [similarity as bundles grow](../../results/qa-encoding/perturbation_similarity.png). The [report](../../REPORT.md) interprets them for a research audience.
+Figures are available as PNG and editable SVG: [answer recovery](../../results/qa-encoding/recovery.png), [profile geometry](../../results/qa-encoding/profile_geometry.png), and [similarity as bundles grow](../../results/qa-encoding/perturbation_similarity.png). The [report](REPORT.md) interprets them for a research audience.
 
 The fixture is synthetic and generated from five factor anchors. The observed ceiling at high dimension and strong profile ranking on this structured fixture should be read as results of this design, not a general MAP capacity threshold.
