@@ -135,6 +135,23 @@ Experiment 4 searched exactly. At 920,000 records with 30% of values missing, we
 | How do we build it? | float16 and one dot product reproduce the exact policies within MAP noise; majority-sign loses partial credit. | L2 property normalization, unit-length float16 vectors, cosine search. |
 | How do we index it? | A cosine-trained IVF_PQ with refine 10–50 matches exact search's result quality; a dot-trained index on the same vectors is worse before refining; RaBitQ failed on these vectors. | Train the index with the search metric, refine, validate the quantizer. |
 
+## When a blank means something
+
+Every experiment here removed values completely at random, so a blank carried no information. Real data often isn't like that, and the recommendations depend on which kind of missing data you have. Statistics distinguishes three kinds (Rubin, 1976):
+
+- **Missing completely at random.** The gap has nothing to do with the record: a field that sometimes fails to save, or a column dropped from one import. This is the only kind we tested.
+- **Missing at random.** The gap depends on something else you can see, such as every record from one data source lacking a region.
+- **Missing not at random.** The gap depends on the missing value itself, or on the person. People with very high or very low incomes often skip the income question; people who don't care about hobbies leave interests blank; a missing lab result often means the test wasn't needed. Here the blank is information: two people who both declined to share an income are more alike than one who declined and one who answered.
+
+Leaving a blank out, as recommended above, means a blank shared by two records adds nothing to their score. That is right for random gaps but discards a real signal when the blank means something. In that case the field should get its own "missing" vector, bound to its role, so a shared blank counts as agreement. When blanks are random, the same marker does harm: in HYP-83's pairwise experiment, two complete strangers each missing half their fields scored 0.50 from shared "missing" vectors alone.
+
+To decide, for each field:
+
+1. **Start with how the data was collected.** Optional or sensitive questions, and fields left empty on purpose ("not tested", "not applicable"), are the likeliest to carry meaning. Values lost to errors or pipeline gaps usually don't.
+2. **Look for patterns.** Compare the other fields between records that are blank in the field and records that aren't, for example with a chi-square test. A difference shows the blanks aren't random, though it can't always say whether they depend on the hidden value itself, which is why step 1 comes first.
+3. **If you have labelled matches, measure both.** Encode the field with blanks left out and with its own "missing" vector, and keep the one that retrieves better.
+4. **Give a meaningful field its own "missing" vector,** never one shared across fields, and keep leaving blanks out elsewhere.
+
 ## Reproducing this
 
 `sh src/missingness/reproduce.sh` regenerates the inputs, runs the tests and all five experiments, and redraws the figures. Experiments 4 and 5 write LanceDB stores of about 2.5 GB and 11 GB, both gitignored.
@@ -142,6 +159,6 @@ Experiment 4 searched exactly. At 920,000 records with 30% of values missing, we
 ## Limits
 
 - **The fixture is synthetic and dense.** Four low-cardinality properties and every possible combination; real data is sparser in value space and has more fields. The 1% pool is the closer analogue.
-- **Missingness is completely at random.** If people who skip a field differ from those who fill it in, absence carries information, and a per-field "missing" token (HYP-83's pairwise experiment, parked in this directory) becomes a candidate again.
+- **Missingness is completely at random.** If blanks carry information, the advice changes for those fields; see [When a blank means something](#when-a-blank-means-something).
 - **Errors are uniform.** Real typos and near-miss values are not; Experiment 3's error model is the simplest one.
 - **Experiments 2 and 3 use exact scores.** Experiment 4 shows MAP vectors reproduce them at D = 2,048 within noise on one pool; other dimensions weren't rerun.
