@@ -1,0 +1,24 @@
+{
+  "plan": "src/missingness/EXPERIMENT_UPDATE.md",
+  "dimension": 2048,
+  "seeds_inclusive": [
+    1,
+    100
+  ],
+  "worked_seed": 11,
+  "atom_seeding": "torch.Generator().manual_seed(1000 * seed + offset) per family",
+  "query": {
+    "age_band": 4,
+    "job_category": 2,
+    "home_region": 1,
+    "interests": [
+      3,
+      9,
+      17
+    ]
+  },
+  "candidate_b_job": 5,
+  "candidate_a": "first k of the query's interests known, k in 0..3; the rest omitted",
+  "dtype": "float32",
+  "normalization": "each known property's bound facts divided by their L2 norm; no sign threshold"
+}
