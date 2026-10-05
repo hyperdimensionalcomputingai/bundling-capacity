@@ -175,7 +175,7 @@ Both run at D = 2,048 with seeds 11, 23 and 37, against all 920,000 candidates. 
 - unrelated records crossing T by the index's own score
 - index-score error
 
-Latency is logged for context only. Storage is exact, so any loss belongs to the index.
+Latency is logged for context only. Storage is exact, so any loss belongs to the index. IVF_PQ training has no fixed seed in this script; fresh index builds can produce slightly different recall and score errors. The saved measurements describe the recorded index run.
 
 ## Uncertainty and scope
 

@@ -64,6 +64,8 @@ Everything below is in `results/scale-missingness/`.
 | `encoder_diagnostics.csv` | Realized age-level cosines and independent-atom overlap for every (D, seed) |
 | `manifest.json` | Versions, seed formulas, storage design, fixture hashes, settings and stage timings |
 
+IVF_PQ training has no fixed seed in this script, so fresh index builds can produce slightly different results. The saved index measurements describe the recorded run.
+
 These are reproducible and gitignored:
 - `experiment.lancedb/`
 - `histograms.parquet`: nonzero 1e-4 bins

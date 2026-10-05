@@ -78,7 +78,7 @@ def run(out: Path, log=print):
                 .distance_type("cosine")
                 .nprobes(nprobes)
                 .limit(K + 1)
-                .select(["record_index"])
+                .select(["record_index", "_distance"])
             )
             if refine is not None:
                 search = search.refine_factor(refine)
