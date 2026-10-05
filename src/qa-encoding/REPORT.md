@@ -10,7 +10,13 @@ The encoder assigns each of the 50 item IDs an independent random bipolar MAP ve
 
 Before encoding, we follow the [published IPIP scoring directions](https://ipip.ori.org/newBigFive5broadKey.htm). A `+` item keeps its raw value; a `-` item maps raw response `r` to `6 − r`. For example, Q19 (“Seldom feel blue”) is `+` keyed and Q49 (“Often feel blue”) is `-` keyed. Raw answers of 5 and 1 both become scored level 5. They still have **different item keys** and remain separate facts. Factor IV's keyed direction is Emotional Stability.
 
-For each fact, we multiply its item key by its scored level vector, then add the bound vectors without a final sign operation. To read Q19, we multiply the bundle by Q19's key. That gives us a noisy version of its answer because the other 49 facts are still in the sum. The five stored, clean level vectors serve as a small **cleanup memory**: we choose whichever one is closest to the noisy result, then reverse the item rule to recover a raw response. Keeping question wording out of the encoder lets us focus on what happens as more facts enter the sum.
+For each fact, we **bind** its item key to its scored answer vector using $\otimes$, then **bundle** the facts using $\oplus$. In additive MAP, binding is element-wise multiplication and bundling is an arithmetic sum without a final sign operation. With $m$ items and scored answers $s_i$, we write the profile as
+
+$$
+h_{\mathrm{profile}} = \bigoplus_{i=1}^{m} \left(h_{\mathrm{item},i} \otimes h_{\mathrm{answer},s_i}\right).
+$$
+
+To read Q19, we bind the bundle to Q19's bipolar key again: $h_{\mathrm{readout},\mathrm{Q19}} = h_{\mathrm{profile}} \otimes h_{\mathrm{item},\mathrm{Q19}}$. That gives us a noisy version of its answer because the other 49 facts are still in the sum. The five stored, clean level vectors serve as a small **cleanup memory**: we choose whichever one is closest to the noisy result, then reverse the item rule to recover a raw response. Keeping question wording out of the encoder lets us focus on what happens as more facts enter the bundle.
 
 ## More facts make individual answers harder to read
 
@@ -40,7 +46,7 @@ Here's the surprising part: adding facts can make cleanup harder while improving
 
 Imagine comparing two patients whose questionnaire answers are mostly alike. As we pack more answers into each bundle, do their hypervectors stay close, or does that similarity fade because the bundles have grown? To test this at **4,096 dimensions**, we made controlled pairs from each profile: we changed exactly **20%** of its raw answers by one scale point, choosing positions at random and moving boundary answers inward. We also changed **60%** by one point to make a farther comparison. We re-scored the changed answers, rebuilt their MAP bundles with the same item keys, and compared each changed bundle with its original. Answer positions were sampled throughout the prefix; there is no special “last” position in this additive bundle.
 
-If bundling preserves similarity, the 20% pairs should keep about the same cosine as the bundle grows and remain closer than the 60% pairs. The shared five-level answer codebook gives an ideal before-bundling comparison: if that stays flat while bundle cosine falls, packing is diluting the similarity signal. The figure combines five MAP seeds; shaded bands show where the middle 90% of the pair measurements fall.
+If bundling preserves similarity, the 20% pairs should keep about the same cosine as the bundle grows and remain closer than the 60% pairs. The shared set of five ordered answer vectors gives an ideal before-bundling comparison: if that stays flat while bundle cosine falls, packing is diluting the similarity signal. The figure combines five MAP seeds; shaded bands show where the middle 90% of the pair measurements fall.
 
 ![Whole-bundle cosine stays near 0.95 for 20% one-step changes and near 0.85 for 60% one-step changes from 5 to 50 facts](../../results/qa-encoding/perturbation_similarity.png)
 

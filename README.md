@@ -1,13 +1,15 @@
 # Bundling capacity: inside and outside a MAP bundle
 
-A MAP hypervector bundle is a sum of bound facts. This repository tests that sum from two directions.
+A MAP hypervector bundle combines bound facts. This repository tests that bundle from two directions.
+
+Throughout these docs, $h$ denotes a hypervector, $\otimes$ denotes **binding**, and $\oplus$ denotes **bundling**. For these additive MAP encoders, binding is implemented as element-wise multiplication and bundling as an arithmetic sum without a final sign threshold. The regular plus sign ($+$) is reserved for ordinary arithmetic, such as adding scalar similarity contributions.
 
 | | **Inside the bundle** | **Outside the bundle** |
 | --- | --- | --- |
 | Question | How many facts can one bundle hold before we can't read a fact back? | Once a record is a bundle, can we still find it, and only it, among a million others, even when fields are missing? |
 | Pressure | Crowding within one vector: every added fact is noise for the others | Crowding among vectors: every added candidate is another chance to score high by accident, and missing fields change what "alike" means |
 | Workload | One person's scored answers to 5–50 IPIP questionnaire items | 920,000 directory-style PERSON records: age band, job, region and three interests |
-| Encoder | Item keys ⊙ five ordered answer levels, unthresholded sum | Role ⊙ value facts, unthresholded sum, L2-normalized; ordinal age levels |
+| Encoder | $h_{\mathrm{item}} \otimes h_{\mathrm{answer}}$, then additive bundling ($\oplus$); five ordered answer levels | $h_{\mathrm{role}} \otimes h_{\mathrm{value}}$, then additive bundling ($\oplus$); ordinal age levels and cosine comparison |
 | Measures | Answer cleanup, whole-profile geometry, similarity as bundles grow | Chance similarity among 920,000 candidates across D and N; what a missing field and a null spelling do to one comparison; one 30%-missing retrieval check; IVF_PQ recall loss |
 | Report | [src/qa-encoding/REPORT.md](src/qa-encoding/REPORT.md) | [src/scale-missingness/REPORT.md](src/scale-missingness/REPORT.md) |
 | Code | [`src/qa-encoding`](src/qa-encoding/README.md) | [`src/scale-missingness`](src/scale-missingness/README.md) · [methodology](src/scale-missingness/METHODOLOGY.md) |
