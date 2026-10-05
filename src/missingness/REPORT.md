@@ -93,12 +93,12 @@ Experiments 2 and 3 scored the policies exactly. Here they're built from MAP vec
 
 - **float16 is free.** float16 and float32 return the same top 10 for **96.5%** of queries (99.7% overlap); the largest score difference is 0.0005, and storage halves (410 MB against 820 MB).
 - **MAP vectors cost almost nothing.** Cosine search over stored vectors reaches **34.3%** precision against the exact policy's 34.7%, and agrees with the exact top 10 on 96% of slots; the rest is noise reordering near-ties, as in the scale study.
-- **Cosine, mismatch and pivoted are each one dot product.** Store each record scaled by the chosen length (unit length for cosine, unscaled for mismatch, Singhal's pivoted length for pivoted) and search by dot product.
+- **This is not a departure from MAP cosine.** The stored vectors are the same MAP bundles, and a dot product over unit-length vectors is cosine, with the same scores and ranking. What a dot product adds is a choice of *where* length normalization happens: scale each record at write time (unit length for cosine, unscaled for mismatch, Singhal's pivoted length for pivoted) and the stored scale is the policy. A cosine metric would divide any other scaling back out.
 - **Query-side weights need no new index.** Scaling the query's property terms by the Experiment 3 weights and searching the same cosine table gave the best precision, **35.3%**.
 - **Majority-sign normalization erases partial credit.** Thresholding each property keeps vectors bipolar, but one *or two* of three interests both score **0.50** against the query's three (L2 gives 0.58 and 0.82), and precision drops to **29.8%**.
 - **Gower can't be one dot product,** because its denominator depends on the pair. As a reranker of cosine's top 100 it reaches 13.2%, far better than Gower over the whole pool (0.4%) but well below cosine.
 
-**Takeaway:** store L2-normalized property bundles in float16, search by dot product, and put weights on the query.
+**Takeaway:** store unit-length, L2-normalized property bundles in float16, search by cosine (equivalently, dot product), and put weights on the query.
 
 ## What we learned
 
@@ -107,7 +107,7 @@ Experiments 2 and 3 scored the policies exactly. Here they're built from MAP vec
 | Who sets a property's weight? | Without normalization, the number of listed values: interests supply 25–50% of a match as 1–3 are listed. | Normalize each property before bundling. |
 | What should a missing property cost? | Treating it as neutral (Gower) fills search results with near-empty records: precision ≤ 7% at 30–50% missingness. Cosine was best or within a point of best in every cell. | Omit missing values and use cosine. |
 | Should properties count equally? | Informativeness weights on top of cosine found the most duplicates, or tied, in every cell; Fellegi–Sunter's own missing = 0 rule collapses in large pools. | Weight by how surprising an agreement is, on the query side. |
-| How do we build it? | float16 and one dot product reproduce the exact policies within MAP noise; majority-sign loses partial credit. | L2 property normalization, float16, dot product. |
+| How do we build it? | float16 and one dot product reproduce the exact policies within MAP noise; majority-sign loses partial credit. | L2 property normalization, unit-length float16 vectors, cosine search. |
 
 ## Reproducing this
 
