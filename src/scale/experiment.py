@@ -39,7 +39,7 @@ TOP_K = 10  # tie-aware agreement with the source ranking
 HEAD = 100  # retrieved head kept per query for ordering and IVF_PQ ground truth
 BETA = 0.01  # allowed false-negative rate per related-pair comparison
 EPSILON = 0.01  # allowed probability of any unintended match, per query over N candidates
-REFERENCE_T = 0.2157  # the earlier chat's D=2048 value, evaluated as a fixed reference only
+REFERENCE_T = 0.2157  # an earlier estimate's D=2048 threshold, evaluated as a reference only
 
 BIN = 1e-4
 METRICS = {

@@ -1,6 +1,6 @@
 """Experiment 1: who sets the weight? Between-property normalization.
 
-Two encodings from the same atoms (plan for part A: EXPERIMENT_UPDATE.md):
+Two encodings from the same atoms:
 
   without_normalization  the current encoder: every known value is one bound fact,
                          so three interests contribute three terms
@@ -232,7 +232,6 @@ def run(out: Path, log=print):
     rankings.write_csv(out / "experiment1_rankings.csv", float_precision=5)
 
     config = {
-        "plan": "src/missingness/EXPERIMENT_UPDATE.md",
         "dimension": DIMENSION,
         "seeds_inclusive": [SEEDS[0], SEEDS[-1]],
         "worked_seed": WORKED_SEED,

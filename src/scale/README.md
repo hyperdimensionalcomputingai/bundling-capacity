@@ -3,7 +3,7 @@
 This directory holds the scale study. The companion [`qa-encoding`](../qa-encoding/README.md) study looks **inside** one bundle: how many answers can be packed in and read back. This study looks **outside** it: how a record's bundle behaves among a million others. Missing values have their own study in [`src/missingness`](../missingness/README.md).
 
 - **[Report](REPORT.md):** the two experiments, what we learned, and the takeaways.
-- **[Methodology](METHODOLOGY.md):** fixture, encoder, baseline, threshold contract, storage, and a note on how far the earlier chat's model applies.
+- **[Methodology](METHODOLOGY.md):** fixture, encoder, baseline, threshold contract, storage, and a note on how far an earlier capacity estimate applies.
 - **[Fixture](../../data/scale/README.md):** the 920,000 factorial PERSON signatures and query panels.
 
 Binding uses $\otimes$: a fact is $h_{\mathrm{fact}} = h_{\mathrm{role}} \otimes h_{\mathrm{value}}$. Bundling uses $\oplus$: a record combines its facts as $h_{\mathrm{record}} = \bigoplus_{f \in \mathcal{F}} h_{\mathrm{fact},f}$, where $\mathcal{F}$ is the set of six encoded facts. Here binding is element-wise multiplication and bundling is an arithmetic sum without a sign threshold. The stored bundles retain that sum; cosine comparison divides by their norms when scoring. The [methodology](METHODOLOGY.md#encoder) gives the coordinate equations.

@@ -138,7 +138,7 @@ def experiment1(scale: pl.DataFrame, out: Path):
     right.text(
         ex.PREFIXES[0] * 1.1,
         ex.REFERENCE_T + 0.006,
-        "earlier chat's T = 0.2157",
+        "earlier estimate's T = 0.2157",
         color=MUTED,
         fontsize=9,
     )

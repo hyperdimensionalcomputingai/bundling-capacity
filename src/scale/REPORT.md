@@ -42,7 +42,7 @@ Each tenfold increase in candidates adds less than the one before. That's the si
 
 **No sensible threshold is ever crossed.** To decide what counts as a match, we calibrated a threshold T on a separate set of queries. T is set so that 99% of genuinely related pairs (at least two-thirds exact similarity) score above it, and it is then held fixed. T sits between **0.62 and 0.66**, three times higher than the largest chance score we saw anywhere. Against it:
 - related pairs were kept **99%** of the time on the evaluation queries (98.6–99.2% across seeds and dimensions)
-- **no** unrelated candidate crossed T at any dimension, not even the earlier chat's much lower example threshold of 0.2157
+- **no** unrelated candidate crossed T at any dimension, not even the much lower example threshold of 0.2157 from an earlier capacity estimate
 
 Zero observed doesn't mean zero risk. Only the 160 queries at the extreme ages have unrelated candidates at all, so the honest bound is: with 95% confidence, fewer than **1.9%** of such queries would ever see a false match against 920,000 records.
 
@@ -91,4 +91,4 @@ Exact search over 920,000 records is fine for a study but slow for an applicatio
 
 - **The fixture is synthetic.** It is a controlled factorial state space with a six-fact record, not real people. Real records with more fields, skewed values or near-duplicates will have different tails.
 - **The results are query-level, not all-pairs.** 400 queries against 920,000 candidates is a small part of the 4.2 × 10¹¹ possible pairs, so the bounds above apply per query.
-- **The scale is empirical only.** How these tails extend to billions of records is left for future work. The earlier chat's majority-sign formula does not describe this additive encoder, as explained in the [methodology](METHODOLOGY.md#applicability-of-the-earlier-chats-model).
+- **The scale is empirical only.** How these tails extend to billions of records is left for future work. The earlier capacity estimate's majority-sign formula does not describe this additive encoder, as explained in the [methodology](METHODOLOGY.md#applicability-of-the-earlier-capacity-estimate).

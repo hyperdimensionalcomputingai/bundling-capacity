@@ -109,8 +109,6 @@ This regenerates the inputs, runs the tests, the five experiments, the earlier p
 | `experiment5_rabitq.csv` | IVF_RQ (RaBitQ) results from an earlier run, kept for the record; the code is at commit `f194888` |
 | `pairwise*`, `retrieval_tokens.csv`, `retrieval_semantic_shift.csv` | Earlier results: leaving blanks out against null tokens, pairwise and in a 30%-missing retrieval check. The retrieval check's code is at commit `450c4e6`. |
 
-[`EXPERIMENT_UPDATE.md`](EXPERIMENT_UPDATE.md) is the plan behind Experiment 1's ranking comparison, written after David's feedback.
-
 ### Scope
 
 The fixture is synthetic: every combination of four fields (age band, job, region, three interests), not a sample of real people. Values are removed completely at random, and Experiment 3's value errors are uniform. Results hold for this encoder, fixture and grid; see the report's limits.

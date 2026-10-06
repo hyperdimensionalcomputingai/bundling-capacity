@@ -111,7 +111,7 @@ At T the experiment reports:
 - the share of queries with an unrelated candidate at or above T (one-sided)
 - the share with `|S_MAP| ≥ T` (two-sided)
 
-The earlier chat's T = 0.2157 is also evaluated, as a fixed reference. `thresholds.json` stores every T with the fixture hashes and settings, and the evaluation refuses to run if either has changed.
+The threshold from an earlier back-of-envelope capacity estimate, T = 0.2157, is also evaluated, as a fixed reference. `thresholds.json` stores every T with the fixture hashes and settings, and the evaluation refuses to run if either has changed.
 
 ## Experiment 2: IVF_PQ against exact search
 
@@ -143,11 +143,11 @@ The sampling unit is the query in both experiments. Seeds reuse the same queries
 
 **Scope.** Results hold for this encoder, fixture, grid and query panel. 400 queries against 920,000 candidates is not the 4.2 × 10¹¹ pairs among all records, so no result is an all-pairs guarantee. Candidate-count effects are extreme-value pressure on each query, not records filling the space.
 
-## Applicability of the earlier chat's model
+## Applicability of the earlier capacity estimate
 
-The [earlier capacity discussion](https://chatgpt.com/s/cx_6a97c2dbe6d0819199ddece9e394882b) assumed a different encoder.
+An earlier back-of-envelope capacity estimate assumed a different encoder.
 
-| | Earlier chat | This study |
+| | Earlier estimate | This study |
 | --- | --- | --- |
 | Record vector | $\operatorname{sign}\left(\bigoplus_f h_{\mathrm{fact},f}\right)$, bipolar | $\bigoplus_f h_{\mathrm{fact},f}$, compared by cosine |
 | Record shape | five attributes | four fields, six facts |
@@ -158,7 +158,7 @@ The [earlier capacity discussion](https://chatgpt.com/s/cx_6a97c2dbe6d0819199dde
 Here $h_{\mathrm{fact},f} = h_{\mathrm{role},f} \otimes h_{\mathrm{value},f}$. The notation $\oplus$ denotes additive bundling in both columns; the earlier encoder applies a coordinate-wise sign to that sum afterwards, while this study retains the sum.
 
 Two consequences follow:
-1. The chat's binomial tail does not describe these additive records.
+1. The estimate's binomial tail does not describe these additive records.
 2. The arcsine mapping does not define their related-pair baseline.
 
-Auditing the 12.2-billion and 17.3-billion figures is left for future work.
+Auditing the estimate's 12.2-billion and 17.3-billion figures is left for future work.

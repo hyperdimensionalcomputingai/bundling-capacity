@@ -1,5 +1,4 @@
 {
-  "plan": "src/missingness/EXPERIMENT_UPDATE.md",
   "dimension": 2048,
   "seeds_inclusive": [
     1,

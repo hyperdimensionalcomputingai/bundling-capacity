@@ -61,7 +61,7 @@ Exact scores are ratios of small integers, so ties are common and are handled in
 
 ## Experiment 1: Who sets the weight?
 
-**Part A, ranking.** One query (age band, job, region, three interests) and hand-built candidates: A_k matches age, job and region and knows k ∈ {0, 1, 2, 3} of the query's interests; B is complete, matches age, region and all three interests, and has a different job. Both encodings at D = 2,048, seeds 1–100, seed 11 as the worked example; the plan is [EXPERIMENT_UPDATE.md](EXPERIMENT_UPDATE.md).
+**Part A, ranking.** One query (age band, job, region, three interests) and hand-built candidates: A_k matches age, job and region and knows k ∈ {0, 1, 2, 3} of the query's interests; B is complete, matches age, region and all three interests, and has a different job. Both encodings at D = 2,048, seeds 1–100, seed 11 as the worked example.
 
 | Encoding | A_k | B |
 | --- | --- | --- |
