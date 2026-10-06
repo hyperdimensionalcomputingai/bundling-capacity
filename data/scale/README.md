@@ -18,7 +18,7 @@ These files hold **920,000 synthetic directory-style records**, one for every co
 | `signatures.parquet` | all experiments | `record_index` plus the six integer codes, in the balanced order below |
 | `query_panels.parquet` | both experiments | The 200-query calibration panel and 400-query evaluation panel, as record indices |
 
-The missingness mask and pairwise pairs that HYP-83 first generated here now live in [`data/missingness`](../missingness/README.md), built from these signatures.
+The missingness mask and pairwise pairs that were first generated here now live in [`data/missingness`](../missingness/README.md), built from these signatures.
 
 ## Balanced nested prefixes
 

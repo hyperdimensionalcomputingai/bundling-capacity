@@ -1,6 +1,6 @@
 # Methodology: missing data and property normalization
 
-This document defines the encodings, the missing-value policies, and the five experiments of [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization). Settings are copied from the code (`person.py`, `policy.py`, `experiment1_weight.py` to `experiment5_index.py`); each experiment also writes its settings to `results/missingness/experiment<N>_config.json`. The findings are in the [report](REPORT.md).
+This document defines the encodings, the missing-value policies, and the five experiments of the missing-data study. Settings are copied from the code (`person.py`, `policy.py`, `experiment1_weight.py` to `experiment5_index.py`); each experiment also writes its settings to `results/missingness/experiment<N>_config.json`. The findings are in the [report](REPORT.md).
 
 ## Records and inputs
 
@@ -21,7 +21,7 @@ Each value is bound to its property's role, $h_{\mathrm{role},p} \otimes h_{p,v}
 
 | Encoding | Record |
 | --- | --- |
-| without normalization (the HYP-83 encoder, omit strategy) | $h_{\mathrm{record}} = \bigoplus_{p \in P} \bigoplus_{v \in V_p} h_{\mathrm{role},p} \otimes h_{p,v}$ |
+| without normalization (the scale study's encoder, omit strategy) | $h_{\mathrm{record}} = \bigoplus_{p \in P} \bigoplus_{v \in V_p} h_{\mathrm{role},p} \otimes h_{p,v}$ |
 | with per-property normalization | $h_{\mathrm{record}} = \bigoplus_{p \in P} h_{\mathrm{role},p} \otimes \big(h_p / \lVert h_p \rVert\big)$ |
 | majority-sign normalization (Experiment 4) | $h_{\mathrm{record}} = \bigoplus_{p \in P} h_{\mathrm{role},p} \otimes \operatorname{sign}\big(h_p + \tfrac{1}{2} h_{\mathrm{tie},p}\big)$ |
 

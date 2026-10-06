@@ -1,6 +1,6 @@
 # MAP similarity among 920,000 records
 
-This directory implements the scale half of [HYP-83](https://linear.app/hyperdimensionalcomputing/issue/HYP-83/research-blog-test-map-similarity-under-missingness-and-million-record). The companion [`qa-encoding`](../qa-encoding/README.md) study looks **inside** one bundle: how many answers can be packed in and read back. This study looks **outside** it: how a record's bundle behaves among a million others. Missing values have their own study, [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization), with starting material in [`src/missingness`](../missingness/README.md).
+This directory holds the scale study. The companion [`qa-encoding`](../qa-encoding/README.md) study looks **inside** one bundle: how many answers can be packed in and read back. This study looks **outside** it: how a record's bundle behaves among a million others. Missing values have their own study in [`src/missingness`](../missingness/README.md).
 
 - **[Report](REPORT.md):** the two experiments, what we learned, and the takeaways.
 - **[Methodology](METHODOLOGY.md):** fixture, encoder, baseline, threshold contract, storage, and a note on how far the earlier chat's model applies.
@@ -70,4 +70,4 @@ These are reproducible and gitignored:
 
 ## Scope
 
-The fixture is a controlled factorial state space, not a sample of people. Results hold for this encoder, fixture, grid and query panel. No billion-record extrapolation is made here; that is Phase 2 of HYP-83, after review.
+The fixture is a controlled factorial state space, not a sample of people. Results hold for this encoder, fixture, grid and query panel. No billion-record extrapolation is made here; that is left for future work.

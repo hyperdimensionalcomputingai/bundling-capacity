@@ -2,7 +2,7 @@
 
 The [questionnaire study](../qa-encoding/REPORT.md) asked what fits **inside** one MAP bundle. This study asks what a bundle faces **outside** itself. A person's record has to be found among many other records, and every extra record is another chance for a stranger to score high by accident. How much chance similarity should we expect as the number of stored records grows, how does the dimension control it, and what does an approximate index give up on top?
 
-We answer those questions with two experiments on one small, fully specified record type. Missing values are a different question, about how a record is normalized rather than how many records there are, so they get their own post ([HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization)).
+We answer those questions with two experiments on one small, fully specified record type. Missing values are a different question, about how a record is normalized rather than how many records there are, so they get their own [study](../missingness/README.md).
 
 ## The record we encode
 
@@ -91,4 +91,4 @@ Exact search over 920,000 records is fine for a study but slow for an applicatio
 
 - **The fixture is synthetic.** It is a controlled factorial state space with a six-fact record, not real people. Real records with more fields, skewed values or near-duplicates will have different tails.
 - **The results are query-level, not all-pairs.** 400 queries against 920,000 candidates is a small part of the 4.2 × 10¹¹ possible pairs, so the bounds above apply per query.
-- **The scale is empirical only.** How these tails extend to billions of records is Phase 2 of HYP-83. The earlier chat's majority-sign formula does not describe this additive encoder, as explained in the [methodology](METHODOLOGY.md#applicability-of-the-earlier-chats-model).
+- **The scale is empirical only.** How these tails extend to billions of records is left for future work. The earlier chat's majority-sign formula does not describe this additive encoder, as explained in the [methodology](METHODOLOGY.md#applicability-of-the-earlier-chats-model).

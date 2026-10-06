@@ -144,7 +144,7 @@ Every experiment here removed values completely at random, so a blank carried no
 - **Missing at random.** The gap depends on something else you can see, such as every record from one data source lacking a region.
 - **Missing not at random.** The gap depends on the missing value itself, or on the person. People with very high or very low incomes often skip the income question; people who don't care about hobbies leave interests blank; a missing lab result often means the test wasn't needed. Here the blank is information: two people who both declined to share an income are more alike than one who declined and one who answered.
 
-Leaving a blank out, as recommended above, means a blank shared by two records adds nothing to their score. That is right for random gaps but discards a real signal when the blank means something. In that case the field should get its own "missing" vector, bound to its role, so a shared blank counts as agreement. When blanks are random, the same marker does harm: in HYP-83's pairwise experiment, two complete strangers each missing half their fields scored 0.50 from shared "missing" vectors alone.
+Leaving a blank out, as recommended above, means a blank shared by two records adds nothing to their score. That is right for random gaps but discards a real signal when the blank means something. In that case the field should get its own "missing" vector, bound to its role, so a shared blank counts as agreement. When blanks are random, the same marker does harm: in an earlier pairwise experiment, two complete strangers each missing half their fields scored 0.50 from shared "missing" vectors alone.
 
 To decide, for each field:
 

@@ -1,6 +1,6 @@
 # Methodology: MAP similarity at million-record scale
 
-This document defines the fixture, the encoder, the baseline and the two experiments. The design is recorded on [HYP-83](https://linear.app/hyperdimensionalcomputing/issue/HYP-83/research-blog-test-map-similarity-under-missingness-and-million-record). Settings are copied from the code (`person.py`, `experiment.py`, `ivfpq.py`). `results/scale/manifest.json` records versions, fixture hashes and stage timings. The findings are in the [report](REPORT.md).
+This document defines the fixture, the encoder, the baseline and the two experiments. Settings are copied from the code (`person.py`, `experiment.py`, `ivfpq.py`). `results/scale/manifest.json` records versions, fixture hashes and stage timings. The findings are in the [report](REPORT.md).
 
 ## Why two experiments, and why these
 
@@ -11,7 +11,7 @@ The study answers one question: how does **unintended similarity** behave as the
 | 1 | How high do unrelated records score by chance among 920,000 candidates, and how does D control it? |
 | 2 | How much does a LanceDB IVF_PQ index lose against exact search? |
 
-Every record is complete. Missing values were part of HYP-83's first design, but their effect follows from which terms are encoded and how records are normalized, not from N. That work now has its own study, [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization), with starting material in [`src/missingness`](../missingness/README.md).
+Every record is complete. Missing values were part of this study's first design, but their effect follows from which terms are encoded and how records are normalized, not from N. That work now has its own study in [`src/missingness`](../missingness/README.md).
 
 ## Fixture
 
@@ -161,4 +161,4 @@ Two consequences follow:
 1. The chat's binomial tail does not describe these additive records.
 2. The arcsine mapping does not define their related-pair baseline.
 
-Auditing the 12.2-billion and 17.3-billion figures is Phase 2 of HYP-83, after review.
+Auditing the 12.2-billion and 17.3-billion figures is left for future work.

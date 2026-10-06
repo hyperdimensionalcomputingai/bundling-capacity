@@ -1,6 +1,6 @@
 # Missing data and normalization
 
-Real records have gaps. One customer lists three interests, another lists one, a third never filled in their job title. This study ([HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization)) asks how to handle those gaps when each record is stored as a hypervector, and how to search millions of such records well.
+Real records have gaps. One customer lists three interests, another lists one, a third never filled in their job title. This study asks how to handle those gaps when each record is stored as a hypervector, and how to search millions of such records well.
 
 The short answer: **it comes down to normalization**, meaning how you scale each part of a record before you compare it. Statistics, search engines and record linkage each worked out pieces of this decades ago, and the same ideas carry over to hypervectors.
 
@@ -84,16 +84,16 @@ From the repository root, after the scale fixture exists in `data/scale/`:
 sh src/missingness/reproduce.sh
 ```
 
-This regenerates the inputs, runs the tests, the five experiments, the parked HYP-83 pairwise experiment and the charts. Atoms are regenerated from their seeds with `person.codebook`, identical to those the scale study stores. Experiments 4 and 5 write LanceDB stores of about 2.5 GB and 11 GB to `results/missingness/`; both are gitignored and safe to delete.
+This regenerates the inputs, runs the tests, the five experiments, the earlier pairwise experiment and the charts. Atoms are regenerated from their seeds with `person.codebook`, identical to those the scale study stores. Experiments 4 and 5 write LanceDB stores of about 2.5 GB and 11 GB to `results/missingness/`; both are gitignored and safe to delete.
 
 ### Code
 
 | Module | Role |
 | --- | --- |
-| `person.py` | Records with missing values, MCAR and duplicate loaders, the MAP-I encoder (omit or token), per-property terms, L2 and majority-sign normalization, exact HYP-83 baselines |
+| `person.py` | Records with missing values, MCAR and duplicate loaders, the MAP-I encoder (omit or token), per-property terms, L2 and majority-sign normalization, exact similarity baselines |
 | `policy.py` | Exact per-property similarities, the missing-value policies, Fellegi–Sunter levels and scorers, and the streamed, tie-aware search behind Experiments 2 to 4 |
 | `experiment1_weight.py` to `experiment5_index.py` | The five experiments |
-| `pairwise.py` | HYP-83's pairwise omit-versus-token experiment (parked) |
+| `pairwise.py` | The earlier pairwise experiment: leaving blanks out against null tokens |
 | `charts.py` | Figures as PNG and editable SVG |
 | `tests/` | Orthogonal-atom exactness, policy denominators, tie-aware ranks against brute force, EM recovery, majority-sign properties, mask rates |
 
