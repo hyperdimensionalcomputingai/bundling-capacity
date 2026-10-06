@@ -1,4 +1,4 @@
-"""HYP-118 Experiment 5: approximate (IVF) search over normalized, partly-null vectors.
+"""Experiment 5: approximate (IVF) search over normalized, partly-null vectors.
 
 Experiment 4 searched 100,000 records exactly (flat). The scale study measured
 IVF_PQ on complete, unnormalized integer bundles. This experiment closes the gap:

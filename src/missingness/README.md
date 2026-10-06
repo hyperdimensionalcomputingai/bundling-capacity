@@ -107,7 +107,7 @@ This regenerates the inputs, runs the tests, the five experiments, the parked HY
 | `experiment4_*` | Each LanceDB implementation against its exact policy and hidden truth; L2 against majority-sign partial credit; float16 against float32 |
 | `experiment5_summary.csv`, `experiment5_normalizer.csv`, `experiment5_metric_check.csv`, `experiment5_config.json` | Every IVF_PQ setting against exact search and hidden truth; realized-norm against field-count normalization; cosine, L2 and dot indexes compared, plus the MIPS-to-L2 reduction; resolved index settings |
 | `experiment5_rabitq.csv` | IVF_RQ (RaBitQ) results from an earlier run, kept for the record; the code is at commit `f194888` |
-| `pairwise*`, `hyp83_*` | Parked HYP-83 results: leaving blanks out against null tokens. The retrieval check's code is at commit `450c4e6`. |
+| `pairwise*`, `retrieval_tokens.csv`, `retrieval_semantic_shift.csv` | Earlier results: leaving blanks out against null tokens, pairwise and in a 30%-missing retrieval check. The retrieval check's code is at commit `450c4e6`. |
 
 [`EXPERIMENT_UPDATE.md`](EXPERIMENT_UPDATE.md) is the plan behind Experiment 1's ranking comparison, written after David's feedback.
 

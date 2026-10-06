@@ -1,4 +1,4 @@
-"""HYP-118 Experiment 4: building it with MAP vectors in LanceDB.
+"""Experiment 4: building it with MAP vectors in LanceDB.
 
 Experiments 2 and 3 scored policies exactly, as if atoms were orthogonal. Here the
 same policies are built from real MAP vectors (D = 2,048, seed 11), stored in

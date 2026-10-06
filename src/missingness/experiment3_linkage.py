@@ -1,4 +1,4 @@
-"""HYP-118 Experiment 3: weights from informativeness (Fellegi-Sunter record linkage).
+"""Experiment 3: weights from informativeness (Fellegi-Sunter record linkage).
 
 Task: find each query person's noisy duplicate among everyone else. A query is a
 complete fixture record. Its duplicate (data/missingness/duplicates.parquet) has

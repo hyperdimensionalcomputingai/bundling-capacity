@@ -1,4 +1,4 @@
-"""HYP-118 Experiment 2: the missing-value dial (Gower, cosine, mismatch, pivoted).
+"""Experiment 2: the missing-value dial (Gower, cosine, mismatch, pivoted).
 
 Every policy scores the same per-property similarities; they differ only in the
 denominator, that is, in what a missing property costs (policy.py). Here they

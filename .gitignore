@@ -21,6 +21,6 @@ results/scale/histograms.parquet
 results/scale/exact_head.parquet
 results/scale/run.log
 
-# missingness: reproducible LanceDB store for HYP-118 Experiment 4 (~2 GB).
+# missingness: reproducible LanceDB stores for Experiments 4 and 5 (~2 GB and ~11 GB).
 results/missingness/experiment4.lancedb/
 results/missingness/experiment5.lancedb/

@@ -1,4 +1,4 @@
-"""Exact similarity policies for records with missing values (HYP-118 Experiments 2-4).
+"""Exact similarity policies for records with missing values (Experiments 2-5).
 
 With orthogonal atoms, the dot product of two property-normalized bundles is the
 sum of per-property similarities over the properties both records know:

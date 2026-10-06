@@ -1,4 +1,4 @@
-"""HYP-118: exact policies, streamed ranking, EM and the majority-sign encoder."""
+"""Exact policies, streamed ranking, EM and the majority-sign encoder."""
 
 import math
 

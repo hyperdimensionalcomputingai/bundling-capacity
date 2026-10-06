@@ -1,4 +1,4 @@
-"""HYP-118 Experiment 1: who sets the weight? Between-property normalization.
+"""Experiment 1: who sets the weight? Between-property normalization.
 
 Two encodings from the same atoms (plan for part A: EXPERIMENT_UPDATE.md):
 

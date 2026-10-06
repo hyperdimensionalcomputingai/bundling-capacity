@@ -1,8 +1,7 @@
 """PERSON records with missing values, the MAP-I encoder and the exact similarity baselines.
 
-Parked from the HYP-83 scale study as starting material for HYP-118 (missing data
-via normalization). Signatures come from the scale fixture in data/scale/; the
-missingness mask and pairwise pairs live in data/missingness/.
+Signatures come from the scale study's fixture in data/scale/; the missingness
+masks, pairwise pairs and noisy duplicates live in data/missingness/.
 
 A record has four fields: an ordinal age band, a job category, a home region and
 a set of three interests, so six bound facts when complete. A missing field is
@@ -14,7 +13,7 @@ handled by one of two strategies:
 
 A missing interest set is one token fact, the same weight as any other field.
 
-`encode_normalized` is the property-normalized alternative studied in HYP-118:
+`encode_normalized` is the property-normalized alternative studied here:
 each known field is scaled to unit length before bundling.
 """
 
@@ -126,7 +125,7 @@ def from_values(record_index, value: torch.Tensor, interests: torch.Tensor) -> R
 
 
 def mcar_records(signatures: pl.DataFrame, rate: float, data_dir: Path = DATA) -> Records:
-    """HYP-118: the fixture with one fixed missing-completely-at-random mask at `rate`."""
+    """The fixture with one fixed missing-completely-at-random mask at `rate`."""
     mask = pl.read_parquet(data_dir / "mcar.parquet").filter(pl.col("rate") == rate)
     if not mask["record_index"].equals(signatures["record_index"]):
         raise ValueError(f"No MCAR mask aligned with the signatures at rate {rate}")
@@ -141,7 +140,7 @@ def mcar_records(signatures: pl.DataFrame, rate: float, data_dir: Path = DATA) -
 
 
 def duplicate_records(rate: float, purpose: str, data_dir: Path = DATA) -> Records:
-    """HYP-118 Experiment 3: noisy duplicates. `record_index` is the source record they copy."""
+    """Experiment 3: noisy duplicates. `record_index` is the source record they copy."""
     rows = pl.read_parquet(data_dir / "duplicates.parquet").filter(
         (pl.col("rate") == rate) & (pl.col("purpose") == purpose)
     )
@@ -200,7 +199,7 @@ def make_atoms(dimension: int, seed: int) -> dict[str, torch.Tensor]:
     atoms["null"] = torchhd.random(
         len(NULL_SPELLINGS), dimension, vsa="MAP", generator=gen(7), dtype=torch.float32
     )
-    # One tie-break vector per property for majority-sign normalization (HYP-118 Experiment 4).
+    # One tie-break vector per property for majority-sign normalization (Experiment 4).
     atoms["tiebreak"] = torchhd.random(
         4, dimension, vsa="MAP", generator=gen(8), dtype=torch.float32
     )

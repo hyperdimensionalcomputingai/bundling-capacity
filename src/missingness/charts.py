@@ -1,4 +1,4 @@
-"""Figures for HYP-118 Experiments 1-4, and HYP-83's parked pairwise experiment.
+"""Figures for Experiments 1-5, and the earlier pairwise experiment (omit against null tokens).
 
 Static PNG and editable SVG, in the scale study's style. Categorical colours are
 the validated slots 1-5 in fixed order; three of them sit under 3:1 contrast on the
@@ -84,7 +84,7 @@ PAIRWISE = (
 )
 
 
-def hyp83_pairwise(summary: pl.DataFrame, out: Path, dimension: int = 2048):
+def pairwise_tokens(summary: pl.DataFrame, out: Path, dimension: int = 2048):
     fig, axes = plt.subplots(1, 2, figsize=(12.6, 5.4), sharey=True)
     fig.subplots_adjust(left=0.07, right=0.86, top=0.78, bottom=0.17, wspace=0.1)
     header(
@@ -143,7 +143,7 @@ def hyp83_pairwise(summary: pl.DataFrame, out: Path, dimension: int = 2048):
         f"D = {dimension:,} · 2,000 pairs per type × {len(pairwise.SEEDS)} seeds · interests always present, so a "
         "complete record has 6 facts · the three single-spelling tokens coincide by construction",
     )
-    save(fig, out / "hyp83_pairwise")
+    save(fig, out / "pairwise_tokens")
 
 
 NORMALIZATION = (
@@ -531,7 +531,7 @@ def main():
         experiment4_build(pl.read_csv(out / "experiment4_summary.csv"), out)
     if (out / "experiment5_summary.csv").exists():
         experiment5_index(pl.read_csv(out / "experiment5_summary.csv"), out)
-    hyp83_pairwise(pl.read_csv(out / "pairwise_summary.csv"), out)
+    pairwise_tokens(pl.read_csv(out / "pairwise_summary.csv"), out)
     print(f"Saved figures in {out}")
 
 

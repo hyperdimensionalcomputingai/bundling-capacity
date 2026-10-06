@@ -1,4 +1,4 @@
-"""HYP-83 Experiment 2 (parked): what a missing value does to one pairwise comparison.
+"""Earlier pairwise experiment: what a missing value does to one pairwise comparison.
 
 For each fixed pair in data/missingness/pairwise_pairs.parquet and each
 k = 0..3 missing scalar fields (age, job, region; removed in the pair's fixed

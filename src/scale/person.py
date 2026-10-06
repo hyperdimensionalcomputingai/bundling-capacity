@@ -2,7 +2,7 @@
 
 A record has four fields: an ordinal age band, a job category, a home region and
 a set of three interests, so six bound facts. Every fixture record is complete;
-missing values are studied separately in src/missingness (HYP-118).
+missing values are studied separately in src/missingness.
 """
 
 from __future__ import annotations

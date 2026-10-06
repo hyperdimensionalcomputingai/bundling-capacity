@@ -1,12 +1,12 @@
 """Build the missingness inputs on top of the scale study's factorial PERSON fixture.
 
-  missingness.parquet, pairwise_pairs.parquet   HYP-83's mask and pairs, parked here.
+  missingness.parquet, pairwise_pairs.parquet   the original study's mask and pairs.
       Every random stream is named (seed string plus a purpose), so splitting the
       generator from the scale fixture reproduces them byte for byte.
-  mcar.parquet         HYP-118 Experiments 2 and 4: one missing-completely-at-random
+  mcar.parquet         Experiments 2, 4 and 5: one missing-completely-at-random
       mask per rate. Age, job and region are each missing with probability r, and
       each of the three interests independently with probability r.
-  duplicates.parquet   HYP-118 Experiment 3: a noisy duplicate of each query-panel
+  duplicates.parquet   Experiment 3: a noisy duplicate of each query-panel
       record and of 20,000 training records, at every rate. Each value is replaced
       by a different one with probability ERROR_RATE, the same corruption at every
       rate; then the duplicate gets its own missingness at that rate.
@@ -32,12 +32,12 @@ FIELDS = ("age_band", "job_category", "home_region", "interests")
 SCALAR_FIELDS = FIELDS[:3]
 NULL_SPELLINGS = ("null", "no_value", "")
 
-# HYP-83 Experiment 3: every field independently missing at this rate, one fixed mask.
+# Original retrieval check: every field independently missing at this rate, one fixed mask.
 MISSING_RATE = 0.3
-# HYP-83 Experiment 2: pairs per pair type.
+# Original pairwise experiment: pairs per pair type.
 PAIRS = 2_000
 
-# HYP-118 design choices for this run, not tuned values. Three rates span light to
+# Design choices for this run, not tuned values. Three rates span light to
 # heavy missingness; 10% value errors make duplicates imperfect without swamping them.
 MCAR_RATES = (0.1, 0.3, 0.5)
 ERROR_RATE = 0.1
@@ -202,7 +202,7 @@ def main():
         )
         + "\n"
     )
-    print(f"Wrote the HYP-83 mask and pairs, MCAR masks and duplicates to {HERE}")
+    print(f"Wrote the original mask and pairs, MCAR masks and duplicates to {HERE}")
 
 
 if __name__ == "__main__":
