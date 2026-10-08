@@ -1,9 +1,0 @@
-encoding,candidate,known_interests,predicted_winner,expected_gap_a_minus_b,measured_gap_mean,measured_gap_sd,share_of_seeds_prediction_holds,holds_at_seed_11
-without_normalization,A_0,0,B,-0.12623,-0.12747,0.00902,1.00000,true
-without_normalization,A_1,1,B,-0.01684,-0.01763,0.00611,0.99000,true
-without_normalization,A_2,2,A,0.07954,0.07931,0.00394,1.00000,true
-without_normalization,A_3,3,A,0.16667,0.16635,0.00530,1.00000,true
-with_normalization,A_0,0,A,0.11603,0.11589,0.00585,1.00000,true
-with_normalization,A_1,1,A,0.14434,0.14428,0.00684,1.00000,true
-with_normalization,A_2,2,A,0.20412,0.20428,0.00672,1.00000,true
-with_normalization,A_3,3,A,0.25000,0.25002,0.00732,1.00000,true
