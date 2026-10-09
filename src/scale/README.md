@@ -1,19 +1,30 @@
-# MAP similarity among 920,000 records
+# Bundled categorical records at scale
 
-This directory implements the scale half of [HYP-83](https://linear.app/hyperdimensionalcomputing/issue/HYP-83/research-blog-test-map-similarity-under-missingness-and-million-record). The companion [`qa-encoding`](../qa-encoding/README.md) study looks **inside** one bundle: how many answers can be packed in and read back. This study looks **outside** it: how a record's bundle behaves among a million others. Missing values have their own study, [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization), with starting material in [`src/missingness`](../missingness/README.md).
+This study looks **outside** one bundle. Each record is a majority-sign bundle of five bound categorical facts. We ask how faithfully exact cosine reports the number of shared properties as the candidate population grows to a million records and D ranges from 512 to 10,000. The companion [`qa-encoding`](../qa-encoding/README.md) study looks **inside** one bundle.
 
-- **[Report](REPORT.md):** the two experiments, what we learned, and the takeaways.
-- **[Methodology](METHODOLOGY.md):** fixture, encoder, baseline, threshold contract, storage, and a note on how far the earlier chat's model applies.
-- **[Fixture](../../data/scale/README.md):** the 920,000 factorial PERSON signatures and query panels.
+- **[Report](REPORT.md):** results, figures and tables.
+- **[Methodology](METHODOLOGY.md):** the question, the theory baseline, the runs and the encoder validation.
+- **[Data](../../data/scale/README.md):** the million synthetic records.
 
-Binding uses $\otimes$: a fact is $h_{\mathrm{fact}} = h_{\mathrm{role}} \otimes h_{\mathrm{value}}$. Bundling uses $\oplus$: a record combines its facts as $h_{\mathrm{record}} = \bigoplus_{f \in \mathcal{F}} h_{\mathrm{fact},f}$, where $\mathcal{F}$ is the set of six encoded facts. Here binding is element-wise multiplication and bundling is an arithmetic sum without a sign threshold. The stored bundles retain that sum; cosine comparison divides by their norms when scoring. The [methodology](METHODOLOGY.md#encoder) gives the coordinate equations.
+Binding uses $\otimes$: a fact is $h_{\mathrm{fact},i} = h_{\mathrm{role},i} \otimes h_{\mathrm{value},i}$. Bundling uses $\oplus$: $h_{\mathrm{record}} = h_{\mathrm{fact},1} \oplus \cdots \oplus h_{\mathrm{fact},5}$. Here binding is element-wise multiplication, and bundling takes the coordinate-wise majority sign of all five facts in one operation.
 
-## The two experiments
+## What this means for HDC practitioners
 
-| # | Question | Script | Main output |
-| --- | --- | --- | --- |
-| 1 | How high do unrelated records score by chance among 920,000 candidates, and how does D control it? | `run.py` | `experiment1_scale.csv`, `experiment1_scale.png` |
-| 2 | How much does a LanceDB IVF_PQ index lose against exact search? | `ivfpq.py` | `ivfpq_summary.csv`, `experiment2_ivfpq.png` |
+These hold for five uniformly drawn categorical properties, majority-sign bundling and exact cosine; the [report](REPORT.md) has the measurements.
+
+1. **Count on about 0.14 cosine per shared property.** For five-fact majority bundles, records sharing zero, one, two and three properties average 0, 0.141, 0.281 and 0.438 at any D. Majority bundling discounts each shared fact compared with an additive bundle (0.2 per fact). Exact enumeration predicts the discount, and the measurements match it to within 0.001.
+2. **Choose D for the noise; N doesn't change it.** Individual scores scatter by about 1/√D around those means: 0.044 at D = 512, 0.022 at 2,048, 0.010 at 10,000.
+3. **Expect the best chance score to climb slowly with N.** Among about 84 million zero-overlap comparisons, the highest score sat roughly 5.5–6 standard deviations above zero. A hundred times more candidates raised it by 0.035 at D = 512 and 0.010 at D = 10,000.
+4. **Use D ≥ 4,096 to keep a million chance scores well below one shared property.** At D = 512 the highest zero-overlap score (0.25) beat the typical one-shared score (0.141). At 2,048 it came within one standard deviation of that score. From 4,096 it stayed at least 3 one-shared standard deviations below it.
+5. **Size D on paper first.** A binomial tail with the actual number of comparisons predicted the highest chance score to within 0.008 at every D and N tested.
+6. **Expect diminishing returns past 8,192.** Going to 10,000 dimensions narrows the spread by about 10% and lowers the highest chance score from 0.061 to 0.057.
+
+Ideas for a "what's possible" post:
+- a one-line sizing rule built from the per-fact mean and the binomial tail;
+- how the per-fact step changes with the number of facts;
+- what skewed real-world value frequencies would do to the group counts.
+
+None of this sets a match threshold; that stays an application decision.
 
 ## Reproduce
 
@@ -23,51 +34,13 @@ From the repository root:
 sh src/scale/reproduce.sh
 ```
 
-The script regenerates the fixture, runs the tests, then runs `run.py`, `ivfpq.py`, `summarize.py` and `charts.py`.
+This runs Ruff, the focused tests, then `run.py`. The run regenerates the records, runs the encoder validation, scans 15 (D, seed) passes over a million records, and writes the summaries, figures, table and report. It takes about a minute and a half on a recent laptop CPU and needs no stored hypervectors.
 
-`run.py` has three stages, which can also be run separately with `--stage build|calibrate|evaluate`:
-- **build** writes the LanceDB store. It is skipped when `store.json` matches the fixture hashes and grid.
-- **calibrate** freezes the thresholds.
-- **evaluate** is one streamed pass covering Experiment 1. It refuses to run if `thresholds.json` doesn't match the current fixture and settings.
-
-**Storage.**
-- LanceDB holds every atom as float16, a few MB, plus one materialized table of 920,000 record bundles at D = 2,048 for Experiment 2, about 3.8 GB.
-- Every other bundle is encoded on the fly, in float32, from the stored atoms.
-- The bundles are small integers, so float16 storage is exact.
-- The store is gitignored. Delete `results/scale/experiment.lancedb` to reclaim the space.
-
-| Module | Role |
+| File | Role |
 | --- | --- |
-| `person.py` | Records, the MAP-I encoder, exact integer-dot cosine, and the S_exact baseline |
-| `store.py` | LanceDB schemas and I/O: float16 at the write boundary, float32 on read |
-| `experiment.py` | The streamed exact search behind Experiment 1 |
-| `run.py` | Build, calibration and evaluation stages, plus the manifest |
-| `ivfpq.py` | Experiment 2 |
-| `summarize.py` | Tables for Experiment 1, with bootstrap and Clopper–Pearson uncertainty |
-| `charts.py` | Figures as PNG and editable SVG |
-| `tests/` | Ordinal kernel, orthogonal-atom exactness (S_MAP = S_exact), float16 round trip, and a streamed pass against brute force on a small LanceDB store |
+| `run.py` | The one run script: records, encoder validation, scan, summaries, figures, manifest, then the report |
+| `study.py` | Encoder (TorchHD random role and value vectors, int8 bound facts, majority sign), the exact theory, and the batched scan with exact integer accumulation |
+| `report.py` | Writes `REPORT.md` and `table_n1m.csv` from the saved summaries |
+| `tests/test_study.py` | Exact enumeration of the means, the encoder, hand-built k = 0–5 records, duplicates and self-exclusion, a small end-to-end run against brute force, controlled pairs, and the discrete binomial references |
 
-## Saved evidence
-
-Everything below is in `results/scale/`.
-
-| File | Contents |
-| --- | --- |
-| `thresholds.json` | Frozen T per (D, seed), with calibration recall, the rule, fixture hashes and settings |
-| `per_query.parquet` | One row per (D, seed, N, query): tier pair counts, highest unrelated score, threshold events, top-10 agreement against S_exact, head ordering |
-| `cell_summary.csv` | Per (D, seed, N): MAP-error quantiles, score tails and threshold rates |
-| `experiment1_scale.csv`, `experiment1_uncertainty.csv` | Experiment 1, averaged over seeds with seed ranges, and query-level bootstrap intervals and Clopper–Pearson bounds |
-| `ivfpq_summary.csv`, `ivfpq_per_query.parquet`, `ivfpq_index.json` | Experiment 2 |
-| `encoder_diagnostics.csv` | Realized age-level cosines and independent-atom overlap for every (D, seed) |
-| `manifest.json` | Versions, seed formulas, storage design, fixture hashes, settings and stage timings |
-
-IVF_PQ training has no fixed seed in this script, so fresh index builds can produce slightly different results. The saved index measurements describe the recorded run.
-
-These are reproducible and gitignored:
-- `experiment.lancedb/`
-- `histograms.parquet`: nonzero 1e-4 bins
-- `exact_head.parquet`: each query's exact top 100
-
-## Scope
-
-The fixture is a controlled factorial state space, not a sample of people. Results hold for this encoder, fixture, grid and query panel. No billion-record extrapolation is made here; that is Phase 2 of HYP-83, after review.
+Outputs go to `results/scale/`; the [report](REPORT.md#files) lists them.

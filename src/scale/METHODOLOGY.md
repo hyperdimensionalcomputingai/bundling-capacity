@@ -1,164 +1,164 @@
-# Methodology: MAP similarity at million-record scale
+# Methodology: bundled categorical records at scale
 
-This document defines the fixture, the encoder, the baseline and the two experiments. The design is recorded on [HYP-83](https://linear.app/hyperdimensionalcomputing/issue/HYP-83/research-blog-test-map-similarity-under-missingness-and-million-record). Settings are copied from the code (`person.py`, `experiment.py`, `ivfpq.py`). `results/scale/manifest.json` records versions, fixture hashes and stage timings. The findings are in the [report](REPORT.md).
+This study has two parts. It shows what to expect when comparing bundled hypervectors against a growing population, with probability theory as the baseline. The results are in the [report](REPORT.md).
 
-## Why two experiments, and why these
+It replaces earlier scale experiments, which remain in git history.
 
-The study answers one question: how does **unintended similarity** behave as the number of stored records and the dimension change, and what does an approximate index give up on top?
+## The question
 
-| # | Question |
-| --- | --- |
-| 1 | How high do unrelated records score by chance among 920,000 candidates, and how does D control it? |
-| 2 | How much does a LanceDB IVF_PQ index lose against exact search? |
+> As the candidate population grows, how high do zero-overlap scores get, and how well do bundled cosine scores distinguish records sharing zero, one or two properties?
 
-Every record is complete. Missing values were part of HYP-83's first design, but their effect follows from which terms are encoded and how records are normalized, not from N. That work now has its own study, [HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization), with starting material in [`src/missingness`](../missingness/README.md).
+We compare the cosine similarity of two complete record hypervectors. Both query and candidate bundle the same five categorical properties. For example, a query and candidate may share their region while differing in education, occupation, interest cluster and employer. That one shared fact should contribute similarity.
 
-## Fixture
+The study measures how faithfully cosine reflects the number of shared properties as N and D change. It does not declare how many shared properties make a valid application match or whether two records describe the same person.
 
-The input is a controlled factorial `PERSON` fixture ([`data/scale`](../../data/scale/README.md)). It contains every combination of:
-- 10 ordered age bands
-- 8 job categories
-- 5 home regions
-- 3 distinct interests from 25
+The questionnaire study looked inside additive bundles. This study looks at comparisons between records and uses majority-sign bundles. That choice needs its own small validation; the previous study does not establish its behaviour.
 
-That's 920,000 integer signatures. They exhaust the declared state space and are not a sample of people. Rows are in a balanced order, so every nested prefix is balanced by age, job and region. Record IDs, names and a constant `entity_type` are not encoded; a constant term would add the same similarity to every pair.
+Approximate indexes are out of scope. The study uses exact cosine comparisons so it measures the representation's behaviour directly.
 
-## Encoder
+## Group pairs by the number of shared properties
 
-MAP-I throughout:
-- **Atoms:** bipolar vectors.
-- **Binding ($\otimes$):** combine a role hypervector and a value hypervector, implemented as element-wise multiplication.
-- **Bundling ($\oplus$):** combine the bound facts into $h_{\mathrm{record}}$, implemented as an arithmetic sum with no sign threshold, compared by cosine.
-- **Roles:** four independent random vectors.
-- **Values:** independent random vectors for the 8 jobs, 5 regions and 25 interests.
-- **Age levels:** ordinal. A random start vector has D/2 of its coordinates split into nine near-equal parts, and each step up one band flips one more part. The intended similarity is `k_age(i, j) = 1 − |i − j| / 9`, so bands 1 and 10 are orthogonal. `encoder_diagnostics.csv` records the realized cosines, which differ from the intended ones by less than 5/D.
-- **Seeds:** `torch.Generator().manual_seed(1000 × seed + offset)` per atom family.
+Count identical values only within the same property. Let k be the number of shared properties across the five facts.
 
-The operators name the conceptual HDC operations. Their implementation in these experiments is ordinary coordinate arithmetic. For coordinate $j$,
+| Group | Definition | What it tells us |
+|---|---|---|
+| **Zero shared properties** | k = 0 | similarity arising without a shared fact |
+| **One shared property** | k = 1 | similarity contributed by one shared fact |
+| **Two shared properties** | k = 2 | similarity contributed by two shared facts |
+| **Three, four or five shared properties** | k = 3, 4 or 5, recorded separately | additional overlap, including identical attribute records at k = 5 |
 
-$$
-\begin{aligned}
-[h_{\mathrm{role}} \otimes h_{\mathrm{value}}]_j &= [h_{\mathrm{role}}]_j [h_{\mathrm{value}}]_j, \\
-[h_a \oplus h_b]_j &= [h_a]_j + [h_b]_j.
-\end{aligned}
-$$
+Every pair belongs to exactly one k group, decided from the original categorical values independently of the measured hypervector cosine. The main figures focus on k = 0, 1 and 2. Zero overlap means no deliberately shared fact; its measured cosine can still differ from zero. One shared property is genuine overlap, not an error.
 
-The plus sign in the second equation adds two scalar coordinates; $\oplus$ denotes bundling the hypervectors. Stored bundles keep the unthresholded sum. Cosine comparison divides by the vector norms when scoring, rather than storing normalized vectors.
+## Theory predicts, the experiment checks
 
-A complete record has six bound facts: one each for age, job and region, plus one for each of the three interests in the set $I$. Each fact is formed by binding its role to its value; all interests reuse the same interest role. We write
+The explanation needs three ideas:
+
+1. **Zero-overlap bundles are almost orthogonal.** Their cosine fluctuates around zero, with a standard deviation of about 1/√D: 0.044 at 512 dimensions, 0.011 at 8,192 and 0.010 at 10,000.
+2. **Shared facts raise the expected cosine.** For five-fact majority bundles, one matching property gives an expected cosine of 0.140625; two give 0.28125. Increasing D narrows the fluctuations around these values.
+3. **More comparisons give more opportunities for an unusually high score.** Even if the typical zero-overlap score stays near zero, its highest observed score can rise as the candidate population grows. Compare that maximum with the scores of records sharing one or two properties.
+
+Theory establishes the expected separation and tail probabilities under an ideal random-vector model. Measurements show how well those predictions describe a population that reuses the same property and value vectors throughout.
+
+### The equations
+
+Each property has an independent random bipolar role vector, and each categorical value has an independent random bipolar value vector within that property. Binding uses $\otimes$:
 
 $$
-\begin{aligned}
-h_{\mathrm{record}} &= h_{\mathrm{age\,fact}} \oplus h_{\mathrm{job\,fact}} \oplus h_{\mathrm{region\,fact}} \\
-&\quad \oplus \bigoplus_{i \in I} h_{\mathrm{interest\,fact},i}.
-\end{aligned}
+h_{\mathrm{fact},i} = h_{\mathrm{role},i} \otimes h_{\mathrm{value},i}.
 $$
 
-For example, $h_{\mathrm{age\,fact}} = h_{\mathrm{age\,role}} \otimes h_{\mathrm{age},a}$ for age band $a$, and $h_{\mathrm{interest\,fact},i} = h_{\mathrm{interest\,role}} \otimes h_{\mathrm{interest},i}$ for interest $i$.
+Bundling uses $\oplus$:
 
-## Baselines
+$$
+h_{\mathrm{record}} = h_{\mathrm{fact},1} \oplus h_{\mathrm{fact},2} \oplus h_{\mathrm{fact},3} \oplus h_{\mathrm{fact},4} \oplus h_{\mathrm{fact},5}.
+$$
 
-For any pair, the intended similarity is computed exactly from the integer records, without touching a hypervector.
+Here binding is element-wise multiplication. Bundling takes the coordinate-wise majority sign of all five facts in one operation. Do not apply the sign after intermediate pairwise combinations. Five is odd, so majority sign never ties. Queries and candidates use this same encoder.
 
-**Exact similarity (`S_exact`)** is the cosine the encoder intends: the intended age-level overlap and no accidental overlap between independent random atoms. The plus signs below add scalar similarity contributions, rather than denoting hypervector bundling:
+- **Expected cosine:** $\mu_k$ is computed exactly by enumerating the bipolar inputs to two five-fact majority bundles with k shared facts. For k = 0–5, the values are 0, 0.140625, 0.28125, 0.4375, 0.625 and 1.
+- **Spread:** $\sigma_k = \sqrt{(1 - \mu_k^2)/D}$.
+- **Per-comparison tail probability:** under the ideal model, the number H of agreeing coordinates follows $\operatorname{Binomial}(D, (1 + \mu_k)/2)$. For any reference cosine s, compute $p_k(s) = P(H \geq \lceil D(1 + s)/2 \rceil)$ from the binomial survival probability. The normal approximation $p_k(s) \approx \Phi(-(s - \mu_k)/\sigma_k)$ explains the bell-curve intuition, but is not used to calculate extreme tails. A reference cosine is a score level, not an application match threshold.
+- **Expected exceedances:** among $M_k$ comparisons in group k, the expected number scoring at least s is $M_k p_k(s)$. This connects the per-pair distribution to the scale of the population without defining false or missed matches.
 
-```text
-[k_age + same job + same region + |shared interests|] / 6
-```
+For orientation, the expected cosine is independent of D, while the predicted standard deviation narrows as D increases:
 
-Both records have six unit facts, so the denominator is 6.
+| Shared properties | Expected cosine | Standard deviation at D = 512 | Standard deviation at D = 8,192 | Standard deviation at D = 10,000 |
+|---|---|---|---|---|
+| 0 | 0 | about 0.044 | about 0.011 | about 0.0100 |
+| 1 | 0.140625 | about 0.044 | about 0.011 | about 0.0099 |
+| 2 | 0.28125 | about 0.042 | about 0.011 | about 0.0096 |
 
-**MAP similarity (`S_MAP`)** is $S_{\mathrm{MAP}} = (h_a \cdot h_b) / (\lVert h_a \rVert \, \lVert h_b \rVert)$ computed from the integer-valued sums. The dot products are exact in float32 (at most 36·D), so identical records tie exactly.
+These are theoretical predictions, not measured results. The implementation recomputes them from the formulas. Tail probabilities describe ideal limits; they do not establish a universal number of records that fit in D dimensions.
 
-**MAP error** is `S_MAP − S_exact`: the noise from using finite, random vectors.
+Expected exceedance counts do not require comparisons to be independent. Predicting the highest cosine does require an additional approximation: use the score quantile with tail probability about $1/M_0$ as a reference for the maximum across $M_0$ zero-overlap comparisons. Repeated queries and reused value vectors make those comparisons dependent, so the maximum reference is illustrative rather than a guarantee.
 
-## Storage
+## Records
 
-Every atom, for every (D, seed), is stored in LanceDB (`experiment.lancedb`) as a fixed-size float16 list with an explicit PyArrow schema, a few MB in total. It is cast to float32 on read. The encoder builds its fact tables from the atoms it reads back.
+Each synthetic person has five categorical properties:
 
-Record bundles are encoded on the fly, in float32 and in bounded chunks, from those stored atoms. Only the table Experiment 2 indexes is materialized: complete records at D = 2,048, seed 11, about 3.8 GB.
+| Property | Values |
+|---|---|
+| Region | 20 |
+| Education | 10 |
+| Occupation | 100 |
+| Interest cluster | 200 |
+| Employer | 1,000 |
 
-Bundles are sums of six ±1 facts, so every coordinate is an integer in [−6, 6] and float16 stores it exactly. The write boundary refuses anything float16 can't hold exactly, and the tests check the round trip bit for bit. All computation is float32. The only float64 values are running sums over more than 10⁸ pairs.
+Employer supplies the fifth categorical property, preserving an odd number of facts. These names make the example readable; all values use independent random vectors, with no semantic similarity between different values.
 
-## Experiment 1: Accidental similarity at million-record scale
+Draw values uniformly and independently. This is a controlled synthetic population, not a model of real demographic frequencies or relationships between properties. Its four billion possible combinations allow duplicate records under independent sampling. Keep duplicates in the k = 5 group; exclude only a query's own record ID from its comparisons.
 
-**Grid:**
-- D ∈ {512, 1,024, 2,048, 4,096, 8,192}
-- seeds 11, 23 and 37
-- N ∈ {100, 1,000, 10,000, 100,000, 920,000}
+Generate one record sequence with a fixed data seed, 101. Reuse it for every dimension and vector seed. Roughly 84% of random pairs have zero overlap and 15% share exactly one property, giving both parts substantial comparison populations.
 
-**Queries.** A 400-query evaluation panel, balanced by job and region, covering all ten age bands with 40% endpoint ages. Among complete records, only a band-1 or band-10 query has `S_exact = 0` candidates: the opposite endpoint age, a different job and region, and no shared interests. A query's own record is excluded.
+## Runs
 
-**Search.** Exact cosine, streamed in chunks of 8,192 that never cross a prefix boundary. Results at smaller N are snapshots taken during the one 920,000-candidate pass.
+Both parts use the same records and exact cosine comparisons. They summarize typical scores by shared-property count and the highest zero-overlap scores.
 
-**Measured:**
-- `|S_MAP − S_exact|` median and p99 over all scored pairs
-- each query's highest unrelated score
-- the p99.9 of unrelated scores
-- top-10 agreement with the exact ranking (ties handled: a retrieved record counts if its `S_exact` is at least the 10th best available)
-- whether the top result is the best available
-- the share of wrong-order pairs among the top 100
+- D ∈ {512, 2,048, 4,096, 8,192, 10,000}.
+- N ∈ {10,000, 100,000, 1,000,000}, as nested prefixes of the record sequence.
+- Vector seeds 11, 23 and 37, each drawing a new set of role and value vectors.
+- A fixed panel of 100 queries, the first 100 records, compared with every other record in each prefix.
 
-**Threshold contract, declared before the run:**
-- **related** means `S_exact ≥ 2/3`
-- **β = 0.01**: T is the largest 1e-4 grid value with at most 1% of related pairs scoring below it
-- T is calibrated on a separate 200-query panel against the first 100,000 candidates, a balanced prefix. A pair's cosine doesn't depend on N, so the related-pair distribution is the same.
-- T is frozen per (D, seed) and held fixed across N
-- **ε = 0.01 per query**
+The 10,000-dimensional setting shows the size of the final improvement beyond 8,192. Theory predicts about 9.5% narrower fluctuations at that step; compare the measurements to show how the gains taper as D increases.
 
-At T the experiment reports:
-- recall on the evaluation panel
-- the share of queries with an unrelated candidate at or above T (one-sided)
-- the share with `|S_MAP| ≥ T` (two-sided)
+There are Q(N − 1) directed query–candidate comparisons, with Q = 100: about 100 million at the largest prefix. This is a query-panel study, not a scan of all N(N − 1)/2 unordered population pairs. Use the actual group counts when calculating every theoretical expectation.
 
-The earlier chat's T = 0.2157 is also evaluated, as a fixed reference. `thresholds.json` stores every T with the fixture hashes and settings, and the evaluation refuses to run if either has changed.
+Candidates are encoded and compared in batches of 5,000, with summaries accumulated as the scan reaches each N. Each (D, vector seed) needs one pass through the million-record sequence, rather than a separate run for each prefix. The panel stays at 100 queries: seed-to-seed variation was small enough for a clear conclusion, so it was not expanded.
 
-## Experiment 2: IVF_PQ against exact search
+Measurements are saved per query and per seed, along with averages and seed ranges. Reporting is kept simple, with no bootstrap framework.
 
-**Index.** The stored D = 2,048, seed-11 table, with a LanceDB `IVF_PQ` index:
-- cosine distance
-- `num_partitions` = round(√rows)
-- `num_sub_vectors` = D / 16 = 128
-- 8 bits
-- LanceDB defaults for everything else, recorded in `ivfpq_index.json`
+## Part 1: Does cosine reflect the number of shared properties?
 
-**Sweep.** `nprobes` ∈ {10, 20, 50, 100} × `refine_factor` ∈ {none, 10, 50}.
+For each k, N, D and vector seed, measure the comparison count, mean cosine and standard deviation. Compare these with $\mu_k$ and $\sigma_k$. Show k = 0, 1 and 2 in the main figure; retain all groups in the saved summaries.
 
-**Ground truth** is Experiment 1's exact top 10. Recall@10 handles ties: a returned record counts when its exact score, recomputed from the stored vectors, is at least the exact 10th score.
+This establishes what zero, one and two shared facts look like in bundled cosine scores, how much those scores fluctuate, and how D affects their separation. Growing N gives more observations; it is not expected to change the ideal mean or spread within a group.
 
-**Also reported:**
-- related records missed
-- unrelated records crossing T by the index's own score
-- index-score error
+## Part 2: How high does zero-overlap similarity get at scale?
 
-Latency is logged for context only. Storage is exact, so any loss belongs to the index. IVF_PQ training has no fixed seed in this script; fresh index builds can produce slightly different recall and score errors. The saved measurements describe the recorded index run.
+Measure the highest zero-overlap cosine across the query panel at each N and compare it with the theoretical maximum reference based on the actual number of zero-overlap comparisons.
 
-## Uncertainty and scope
+Alongside the maximum, show the measured mean and standard deviation for k = 1 and 2. This reveals whether the most extreme zero-overlap score approaches or exceeds the typical scores of records with shared facts.
 
-The sampling unit is the query in both experiments. Seeds reuse the same queries, and records sharing values share bound terms, so pairs are not treated as independent trials:
-- query-level rates are averaged over seeds per query, then **bootstrapped over queries** (2,000 resamples)
-- events never observed are reported with a one-sided **Clopper–Pearson 95% upper bound**; for 400 queries that's about 0.75%, not zero
-- seed ranges are shown next to means
-- histogram quantiles use 1e-4 bins, rounded in the conservative direction; per-query maxima and threshold counts are exact
+Exceeding a group's mean is a comparison with a typical score, not proof that all records in that group were outranked. The study describes score separation; it does not add a ranking benchmark or label one-property overlap as a false match.
 
-**Scope.** Results hold for this encoder, fixture, grid and query panel. 400 queries against 920,000 candidates is not the 4.2 × 10¹¹ pairs among all records, so no result is an all-pairs guarantee. Candidate-count effects are extreme-value pressure on each query, not records filling the space.
+## Outputs
 
-## Applicability of the earlier chat's model
+- **Figure 1:** mean cosine against shared-property count k = 0, 1 and 2 at N = 1,000,000, one panel per D. Show measured standard deviations and theoretical means and standard deviations. Label the spread explicitly; it is not a confidence interval.
+- **Figure 2:** highest zero-overlap cosine against N, one panel per D, with its theoretical maximum reference and the measured means of k = 1 and 2, shaded by one standard deviation. Show seed ranges for the observed maximum.
+- **One table:** at N = 1,000,000, D, comparison counts and predicted and measured means and standard deviations for k = 0, 1 and 2, plus the zero-overlap maximum. Show seed averages and ranges.
+- **A short report:** explain the setup, the two figures, where theory agrees or differs, and what a practitioner can expect under these conditions.
 
-The [earlier capacity discussion](https://chatgpt.com/s/cx_6a97c2dbe6d0819199ddece9e394882b) assumed a different encoder.
+The report also tabulates how the maximum grows with N, and the expected and measured exceedances. The encoder validation is reported as a table rather than a figure. There is no extrapolated record-capacity table or capacity solver.
 
-| | Earlier chat | This study |
-| --- | --- | --- |
-| Record vector | $\operatorname{sign}\left(\bigoplus_f h_{\mathrm{fact},f}\right)$, bipolar | $\bigoplus_f h_{\mathrm{fact},f}$, compared by cosine |
-| Record shape | five attributes | four fields, six facts |
-| Unrelated-pair cosine | `1 − 2·Hamming/D`, an exact binomial for independent bipolar vectors | a normalized sum of cross-terms between atoms shared across records; spread near 1/√D, not binomial |
-| Related-pair similarity | compressed by majority bundling (arcsine) | expected cosine is `S_exact` itself |
-| Threshold example | T ≈ 0.2157 at D = 2,048, β = 0.001, ε = 0.01 | T calibrated for related pairs at `S_exact ≥ 2/3`; 0.2157 evaluated as a reference only |
+## Encoder validation
 
-Here $h_{\mathrm{fact},f} = h_{\mathrm{role},f} \otimes h_{\mathrm{value},f}$. The notation $\oplus$ denotes additive bundling in both columns; the earlier encoder applies a coordinate-wise sign to that sum afterwards, while this study retains the sum.
+Before any population result, controlled pairs check the encoder against the theory. For each D and each k = 0–5, 20,000 random record pairs share exactly k properties: the shared properties are chosen at random, and every other property takes a different value. The pairs are encoded with vector seed 11's role and value vectors. Values are reused across pairs, as they are in the population, so the check runs under realistic conditions, not the ideal independent-vector model.
 
-Two consequences follow:
-1. The chat's binomial tail does not describe these additive records.
-2. The arcsine mapping does not define their related-pair baseline.
+Measured means fall within 0.001 of the exact enumeration, and spreads within about 1% of $\sigma_k$, at every D. Identical attribute records always score exactly 1. The deviations of the mean are a few times larger than independent sampling would allow. They share a sign within each D, because reusing one vector set adds a small, seed-specific correlation; the population results show the same offset. The full table is in the [report](REPORT.md#encoder-validation) and `results/scale/encoder_validation.csv`.
 
-Auditing the 12.2-billion and 17.3-billion figures is Phase 2 of HYP-83, after review.
+## Implementation
+
+- **One run script.** `run.py` regenerates the records, runs the encoder validation, scans every (D, seed), and writes the summaries, figures, table and report. `study.py` holds the encoder, the theory and the scan; `report.py` writes the report from the saved summaries. `data/scale/generate.py` generates the records.
+- **No stored hypervectors.** Role and value vectors are regenerated deterministically from the vector seed and D (`torch.Generator().manual_seed(seed * 1_000_003 + D)`, drawn with `torchhd.random`). Records are a Parquet file of categorical codes. LanceDB is not used: exact comparison against an in-memory batch needs no index, and the vectors take seconds to rebuild.
+- **Exact arithmetic.** Bound facts are precomputed per property as int8, and a batch of records is encoded by lookup, an int8 sum and one sign. Similarity is a float32 matrix product of ±1 vectors, whose integer results are exact at these D. Per query and k, the scan accumulates the dot products, their squares and their maximum as int64, so pooled means and standard deviations are exact up to the final float64 division.
+- **Deterministic seeds and a manifest.** `manifest.json` records settings, library versions and timings.
+- **Not included.** The study has no approximate-index benchmark, ordinal encoding, additive record bundles, field-similarity baseline, calibrated thresholds, score histograms or ranking diagnostics. Bit-packing is out of scope.
+
+## Acceptance checks
+
+These are implemented in `tests/test_study.py`, which runs, together with Ruff, before the full study.
+
+- The encoder binds each categorical value to its own property role and majority-bundles exactly five facts, identically for queries and candidates.
+- A small controlled-pair check compares measured means and spreads with the theoretical predictions for k = 0–5. Compute the majority-bundle means by exact enumeration.
+- Hand-built records verify shared-property counts k = 0–5, duplicate handling and self-exclusion.
+- A small end-to-end run agrees with direct brute-force cosines, group counts, means, standard deviations, maxima and prefix summaries.
+- Theoretical means, spreads and binomial maximum references are computed from the formulas, respecting the discrete cosine values, rather than copied from the illustrative table.
+- One script regenerates the records, measurements, table, figures and report. Run the focused checks and Ruff before the full study.
+
+## What the results establish
+
+The study measures how increasing N and D affects exact similarity comparisons for five categorical facts under majority-sign bundling, through one million candidates and about 100 million comparisons per setting.
+
+Theory provides a baseline for typical similarities and extreme scores. Agreement in the measured range supports that baseline there; it does not validate its extreme tails or establish a universal storage capacity.
+
+The conclusions depend on the number of facts, property frequencies and bundling method. An application would need to choose its own relevance rule or match threshold. State the measured conditions alongside the results. Other conditions are future questions, not extra experiments in this rework.

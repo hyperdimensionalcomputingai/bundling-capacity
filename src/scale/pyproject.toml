@@ -1,12 +1,10 @@
 [project]
 name = "scale-experiment"
 version = "0.1.0"
-description = "MAP-I record similarity among 920,000 candidates: chance similarity across D and N, and IVF_PQ against exact search"
+description = "Majority-bundled categorical records at scale: cosine by shared-property count, and the highest zero-overlap score, across D and N"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-  "lancedb==0.37.1",
   "matplotlib==3.11.1",
-  "numpy==2.5.3",
   "polars==1.44.1",
   "pyarrow==25.0.1",
   "scipy==1.18.1",

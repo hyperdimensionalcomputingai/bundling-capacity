@@ -1,62 +1,113 @@
 {
-  "design": "MAP-I: bipolar role and value atoms, element-wise binding, additive bundle, cosine comparison; exact streamed search",
-  "fixture": "controlled factorial PERSON fixture, 10 x 8 x 5 x C(25,3) = 920,000 signatures",
-  "fixture_sha256": {
-    "signatures.parquet": "a4814cf12bfcfbbe064e8aa5aab1bfa8c77d0d231159d0439dbb9f8cb4f3d0ef",
-    "query_panels.parquet": "b020e7ef9cb6f32e62054d66cc6b3f83fe5aa3a04c96c82ecaf82c8bbcc276ee"
-  },
   "settings": {
     "dimensions": [
       512,
-      1024,
       2048,
       4096,
-      8192
+      8192,
+      10000
     ],
-    "seeds": [
+    "prefixes": [
+      10000,
+      100000,
+      1000000
+    ],
+    "vector_seeds": [
       11,
       23,
       37
     ],
-    "prefixes": [
+    "vector_draw": "torch.Generator().manual_seed(seed * 1_000_003 + D); torchhd.random roles, then values per property in order",
+    "query_panel": "first 100 records; self excluded, duplicates kept",
+    "batch": 5000,
+    "facts": [
+      "region",
+      "education",
+      "occupation",
+      "interest_cluster",
+      "employer"
+    ],
+    "cardinalities": [
+      20,
+      10,
       100,
-      1000,
-      10000,
-      100000,
-      920000
+      200,
+      1000
     ],
-    "calibration_candidates": 100000,
-    "related_cutoff": 0.6666666666666666,
-    "tiers": [
-      "unrelated_0",
-      "low_(0,1/3)",
-      "mid_[1/3,2/3)",
-      "related_[2/3,1]"
-    ],
-    "beta": 0.01,
-    "epsilon": 0.01,
-    "reference_threshold": 0.2157,
-    "top_k": 10,
-    "head": 100,
-    "histogram_bin": 0.0001,
-    "chunk": 8192
+    "bundling": "coordinate-wise majority sign of all five bound facts",
+    "score": "exact cosine of bipolar vectors, integer dot / D",
+    "predicted_means": {
+      "0": 0.0,
+      "1": 0.140625,
+      "2": 0.28125,
+      "3": 0.4375,
+      "4": 0.625,
+      "5": 1.0
+    },
+    "exceedance_scores": {
+      "half_mu1": 0.0703125,
+      "mu1": 0.140625
+    },
+    "validation": {
+      "pairs_per_k": 20000,
+      "vector_seed": 11,
+      "data_seed": 202
+    }
   },
-  "storage": "LanceDB fixed-size float16 lists: every atom (symbols_d{D}) and the complete-record bundles at D=2048, seed 11 (records_d2048_s11). Coordinates are small integers, so float16 is exact. All other bundles are encoded on the fly in float32 from the stored atoms.",
-  "compute_dtype": "float32; float64 only for running sums over >1e8 pairs",
-  "atom_seed_formula": "torch.Generator().manual_seed(1000 * seed + offset); offsets 1 roles, 2 age levels, 3-5 job/region/interest values (7 is reserved for src/missingness null tokens)",
-  "self_match": "a query's own record is excluded from its candidates",
-  "torch_threads": 10,
+  "records": {
+    "record_count": 1000000,
+    "data_seed": 101,
+    "properties": {
+      "region": 20,
+      "education": 10,
+      "occupation": 100,
+      "interest_cluster": 200,
+      "employer": 1000
+    },
+    "sampling": "uniform and independent per property, torch.randint, one generator",
+    "torch_version": "2.13.0",
+    "pair_share_by_k": [
+      0.8413755322499998,
+      0.15133807125,
+      0.0071975925000000015,
+      8.847250000000002e-05,
+      3.3125000000000006e-07,
+      2.5000000000000007e-10
+    ],
+    "duplicate_attribute_records": 132
+  },
   "versions": {
+    "python": "3.13.14",
     "torch": "2.13.0",
-    "torchhd": "5.8.4",
+    "torch-hd": "5.8.4",
     "polars": "1.44.1",
     "pyarrow": "25.0.1",
     "scipy": "1.18.1",
-    "lancedb": "0.37.1"
+    "matplotlib": "3.11.1",
+    "machine": "Darwin arm64",
+    "torch_threads": 4
   },
-  "stage_seconds": {
-    "build": 9,
-    "calibrate": 8,
-    "evaluate": 126
+  "timings": {
+    "records_s": 0.11986158299987437,
+    "encoder_validation_s": 3.707419584003219,
+    "scan_s": {
+      "d512_s11": 1.62,
+      "d512_s23": 1.61,
+      "d512_s37": 1.64,
+      "d2048_s11": 2.59,
+      "d2048_s23": 2.59,
+      "d2048_s37": 2.59,
+      "d4096_s11": 4.12,
+      "d4096_s23": 4.09,
+      "d4096_s37": 4.26,
+      "d8192_s11": 7.15,
+      "d8192_s23": 7.22,
+      "d8192_s37": 7.21,
+      "d10000_s11": 8.6,
+      "d10000_s23": 8.57,
+      "d10000_s37": 8.61
+    },
+    "figures_s": 0.34999070800404297,
+    "total_s": 76.73073250000016
   }
 }

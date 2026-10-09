@@ -13,10 +13,3 @@ wheels/
 results/**/experiment.lancedb/
 .DS_Store
 
-# scale: reproducible intermediates (the LanceDB store is ~4 GB).
-# Committed results are the per-query table, summaries, thresholds and figures.
-results/scale/experiment.lancedb/
-results/scale/store.json
-results/scale/histograms.parquet
-results/scale/exact_head.parquet
-results/scale/run.log

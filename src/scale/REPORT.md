@@ -1,94 +1,229 @@
-# What a bundle faces outside itself: a million neighbours
+# Bundled categorical records at scale
 
-The [questionnaire study](../qa-encoding/REPORT.md) asked what fits **inside** one MAP bundle. This study asks what a bundle faces **outside** itself. A person's record has to be found among many other records, and every extra record is another chance for a stranger to score high by accident. How much chance similarity should we expect as the number of stored records grows, how does the dimension control it, and what does an approximate index give up on top?
+This report covers the scale study described in the [methodology](METHODOLOGY.md): exact cosine comparisons between majority-bundled records of five categorical properties, against populations of up to one million records, at five hypervector dimensions. All values are rounded to three decimals; comparison counts are whole numbers.
 
-We answer those questions with two experiments on one small, fully specified record type. Missing values are a different question, about how a record is normalized rather than how many records there are, so they get their own post ([HYP-118](https://linear.app/hyperdimensionalcomputing/issue/HYP-118/research-blog-how-to-handle-missing-data-via-normalization)).
+## In brief
 
-## The record we encode
+A hypervector record can be compared with a million others by cosine similarity. Two records that share nothing still score a little above or below zero by chance, and with enough candidates, one of those chance scores gets surprisingly high. This study measured how high, and whether it can be confused with the score of a record that genuinely shares one or two properties. Theory predicted the answers almost exactly. Each shared property adds about 0.141 to the cosine. Chance scores scatter by about 1/√D. The highest chance score among 84,133,994 comparisons sits about 5.675 of those spreads above zero. At D = 512 that is 0.250, more than one shared property is worth. At D = 4,096 and above it stays clearly below.
 
-Each synthetic `PERSON` has four fields:
-- an **age band** (10 ordered levels)
-- a **job category** (8)
-- a **home region** (5)
-- **three interests** out of 25
+## Background for readers new to hypervectors
 
-Every combination occurs exactly once, giving **920,000 records**. That is the whole state space, not a sample of people, so the records never repeat and we always know exactly how alike two of them are.
+- **Hypervectors.** A hypervector is a long list of D numbers. Here every entry is +1 or −1, chosen at random. Two independent random hypervectors are almost orthogonal: their cosine similarity is close to 0, scattering by about 1/√D (0.044 at D = 512, 0.010 at D = 10,000). That scatter is the noise floor of everything below.
+- **Binding ($\otimes$).** Element-wise multiplication. Binding a property's role vector (say, "employer") with a value vector (say, employer no. 412) gives a new random-looking vector, a *fact*, unrelated to either input and to facts about other properties. Two records with the same employer produce the identical employer fact.
+- **Bundling ($\oplus$).** Combines the five facts into one record vector of the same length. This study uses *majority-sign* bundling: at each coordinate, the record takes the sign held by at least three of the five facts. The result stays a ±1 vector and is similar to each of its facts.
+- **Cosine similarity.** For ±1 vectors, cosine is the fraction of agreeing coordinates minus the fraction of disagreeing ones: 1 for identical vectors, about 0 for unrelated ones.
+- **Why one shared fact is worth 0.141, not 0.2.** If the vectors were simply added, one shared fact out of five would give cosine 1/5 = 0.2. Majority voting loses some of that. A shared fact can only make two records agree at a coordinate where it casts the deciding vote in *both* records. That happens when each record's other four facts split 2–2, with probability 6/16 = 3/8 per record. So the shared fact decides both records with probability (3/8)² = 9/64 = 0.141. Everywhere else, the two signs are independent and average out to zero. Two or more shared facts are worked out by enumerating every combination of signs: 0.281, 0.438, 0.625 and 1 for k = 2 to 5.
+- **Why more candidates mean higher chance scores.** Each zero-overlap comparison is one random draw from a narrow bell curve around 0. The more draws, the further the most extreme one reaches into the tail. That tail thins very fast, so the maximum grows only with the square root of the logarithm of the number of comparisons.
 
-Each value is **bound** to its field's role vector using $\otimes$: $h_{\mathrm{fact}} = h_{\mathrm{role}} \otimes h_{\mathrm{value}}$. A record **bundles** those facts using $\oplus$: $h_{\mathrm{record}} = \bigoplus_{f \in \mathcal{F}} h_{\mathrm{fact},f}$, with six facts in $\mathcal{F}$. In this additive MAP encoder, binding is element-wise multiplication and bundling is an arithmetic sum without a sign threshold. Nearby age bands get overlapping vectors, so a 30-year-old looks more like a 35-year-old than a 65-year-old. We compare records by cosine.
+## What a practitioner can expect
 
-Because the records are synthetic and exhaustive, every pair has an exact reference: the **exact similarity**, the cosine the encoding would produce with the intended age-level overlap and no accidental overlap between independent random atoms. It counts the age overlap, a shared job, a shared region and shared interests, out of six facts. **MAP error** is the gap between the measured cosine and the exact similarity: noise from using finite, random vectors.
+These rules of thumb hold under the measured conditions: five uniformly drawn categorical properties, one majority-sign bundle per record, exact cosine.
 
-Code, settings and reproduction steps are in the [README](README.md) and [methodology](METHODOLOGY.md).
+1. **Each shared property is worth about 0.14 cosine.** Records sharing zero, one, two or three properties score 0.000, 0.141, 0.281 and 0.438 on average, at every D and N tested. The measured means match these predictions to within 0.001.
+2. **D sets the noise; N does not.** The spread of individual scores is about 1/√D: 0.044 at D = 512 and 0.010 at D = 10,000. Adding candidates only adds more draws from the same distribution.
+3. **The highest zero-overlap score rises slowly with N.** From 10,000 to 1,000,000 candidates (100 times as many), it rose from 0.215 to 0.250 at D = 512, and from 0.048 to 0.057 at D = 10,000. At a million candidates it sat 5.495–5.938 standard deviations above zero.
+4. **At D = 512, a million candidates are too many to keep chance scores below one shared property.** The highest zero-overlap score (0.250) exceeds the typical one-shared score (0.141). At D = 2,048 it stays below the one-shared mean but inside its one-standard-deviation band. From D = 4,096 it sits at least 3.098 one-shared standard deviations below the one-shared mean.
+5. **The binomial model predicts the extremes well enough to size D in advance.** Across every D and N, the measured maximum stayed within 0.008 of the theoretical reference.
+6. **Gains taper beyond 8,192 dimensions.** Moving to 10,000 dimensions narrowed the zero-overlap spread by 10.0% (predicted 9.5%) and lowered the highest zero-overlap score from 0.061 to 0.057.
 
-## 1. Among 920,000 records, chance similarity stays small
+None of this sets a match threshold. Whether one shared property counts as relevant is an application decision; the study measures how faithfully cosine reports the number of shared properties.
 
-Imagine searching for one person among all 920,000 records. Most candidates share something with them: an age band nearby, a common job, an interest. That's genuine similarity, not an accident. The worry is the **unrelated** candidates, who share nothing at all: the opposite end of the age range, a different job and region, and no interests in common. Their cosine should be zero, but random vectors are never perfectly orthogonal, and the more candidates we search, the more chances one of them has to score high by luck.
+## Setup
 
-We searched exactly, with no approximate index, from 400 query records against every one of the 920,000 candidates, at five dimensions and three random seeds, and recorded how the picture changes as the pool grows from 100 to 920,000.
+- **Records.** 1,000,000 synthetic records with five independent, uniformly drawn properties: region (20 values), education (10), occupation (100), interest cluster (200) and employer (1,000). Data seed 101. The sequence contains 132 duplicate attribute records.
+- **Encoder.** Each property has a random bipolar role vector and each value a random bipolar value vector. A record is the coordinate-wise majority sign of its five bound facts, $h_{\mathrm{record}} = h_{\mathrm{fact},1} \oplus \cdots \oplus h_{\mathrm{fact},5}$ with $h_{\mathrm{fact},i} = h_{\mathrm{role},i} \otimes h_{\mathrm{value},i}$.
+- **Comparisons.** The first 100 records are queries. Each is compared, by exact cosine, with every other record in nested prefixes N = 10,000, 100,000 and 1,000,000. That makes 99,999,900 directed comparisons at the largest prefix for each D and vector seed. A query's own record is excluded.
+- **Grid.** D = 512, 2,048, 4,096, 8,192 and 10,000; vector seeds 11, 23 and 37. Each (D, seed) is one pass through the million records. The 15 passes took 72 seconds in total on one laptop CPU.
+- **Groups.** Pairs are grouped by k, the number of properties with identical values, from the categorical records alone. At N = 1,000,000 the panel has 84,133,994 comparisons with k = 0, 15,137,069 with k = 1, 719,912 with k = 2, 8,887 with k = 3, 38 with k = 4 and 0 with k = 5. None of the 100 queries happens to have a duplicate attribute record. These counts are the same for every D and seed.
 
-![Left: MAP error falls as 1/√D. Right: the highest score among unrelated candidates rises slowly with pool size and falls with dimension](../../results/scale/experiment1_scale.png)
+### Terms used in this report
 
-**MAP error shrinks exactly as expected.** The 99th-percentile gap between the measured and intended cosine is **0.103 at 512 dimensions** and **0.026 at 8,192**. That's about 2.3/√D at every dimension, and it varies little between seeds.
+- **k, shared properties.** The number of properties on which two records have identical values, counted from the raw categorical records before any encoding. Groups are called *zero shared* (k = 0, also *zero-overlap*), *one shared* (k = 1) and *two shared* (k = 2).
+- **Predicted mean and spread.** $\mu_k$ from exact enumeration, and $\sigma_k = \sqrt{(1 - \mu_k^2)/D}$, the standard deviation of a single score under the ideal model of independent random vectors.
+- **Measured mean and spread.** Pooled over every comparison in a group (all 100 queries), per vector seed, then averaged over the three seeds. "Std" always means the spread of individual scores, never an uncertainty of the mean.
+- **Highest zero-overlap score.** The single largest cosine among all zero-overlap comparisons for the whole query panel at a given N, D and seed.
+- **Maximum reference.** The cosine that an ideal model expects about one zero-overlap comparison in M₀ to reach. It is a reference level for the maximum, not a bound.
+- **Exceedances.** How many zero-overlap comparisons reach a fixed score level, compared with the number the binomial model expects.
+- **Vector seed.** Selects one random set of role and value vectors. Different seeds are different, equally valid encoders of the same records.
 
-**The unrelated tail grows slowly with N.** For a typical query, the best-scoring unrelated candidate reaches:
+## Part 1: cosine reflects the number of shared properties
 
-| Dimensions | 100 candidates | 920,000 candidates | Highest across all queries |
-| --- | --- | --- | --- |
-| 512 | 0.048 | 0.136 | 0.21 |
-| 2,048 | 0.023 | 0.062 | 0.10 |
-| 8,192 | 0.013 | 0.033 | 0.05 |
+![Mean cosine by shared-property count at N = 1,000,000](../../results/scale/figure1_shared_properties.png)
 
-Each tenfold increase in candidates adds less than the one before. That's the signature of an extreme-value effect: more records don't mix together or "fill" the space; each query just gets more draws from the same noise distribution.
+**Figure 1.** Mean cosine for zero, one and two shared properties at N = 1,000,000, one panel per D. Each predicted mean is a tick with a band of ± one predicted standard deviation. Each measured mean is a dot with bars of ± the measured standard deviation, averaged over seeds. Bars and bands show the spread of individual scores, not confidence intervals.
 
-**No sensible threshold is ever crossed.** To decide what counts as a match, we calibrated a threshold T on a separate set of queries. T is set so that 99% of genuinely related pairs (at least two-thirds exact similarity) score above it, and it is then held fixed. T sits between **0.62 and 0.66**, three times higher than the largest chance score we saw anywhere. Against it:
-- related pairs were kept **99%** of the time on the evaluation queries (98.6–99.2% across seeds and dimensions)
-- **no** unrelated candidate crossed T at any dimension, not even the earlier chat's much lower example threshold of 0.2157
+| D | k | Comparisons | Predicted mean | Measured mean (seed range) | Predicted std | Measured std (seed range) | Highest score (seed range) | Maximum reference |
+|---:|---:|---:|---:|---|---:|---|---|---:|
+| 512 | 0 | 84,133,994 | 0.000 | 0.001 (0.000–0.002) | 0.044 | 0.044 (0.044–0.045) | 0.250 (0.234–0.258) | 0.250 |
+| 512 | 1 | 15,137,069 | 0.141 | 0.141 (0.140–0.142) | 0.044 | 0.044 (0.043–0.045) | — | — |
+| 512 | 2 | 719,912 | 0.281 | 0.282 (0.280–0.283) | 0.042 | 0.043 (0.042–0.043) | — | — |
+| 2,048 | 0 | 84,133,994 | 0.000 | 0.000 (−0.001 to 0.000) | 0.022 | 0.022 (0.022–0.022) | 0.122 (0.120–0.127) | 0.124 |
+| 2,048 | 1 | 15,137,069 | 0.141 | 0.140 (0.139–0.141) | 0.022 | 0.022 (0.022–0.022) | — | — |
+| 2,048 | 2 | 719,912 | 0.281 | 0.280 (0.279–0.282) | 0.021 | 0.021 (0.021–0.021) | — | — |
+| 4,096 | 0 | 84,133,994 | 0.000 | 0.000 (−0.001 to 0.000) | 0.016 | 0.016 (0.015–0.016) | 0.093 (0.088–0.096) | 0.088 |
+| 4,096 | 1 | 15,137,069 | 0.141 | 0.141 (0.140–0.142) | 0.015 | 0.015 (0.015–0.016) | — | — |
+| 4,096 | 2 | 719,912 | 0.281 | 0.281 (0.280–0.283) | 0.015 | 0.015 (0.015–0.015) | — | — |
+| 8,192 | 0 | 84,133,994 | 0.000 | 0.000 (0.000–0.000) | 0.011 | 0.011 (0.011–0.011) | 0.061 (0.060–0.061) | 0.062 |
+| 8,192 | 1 | 15,137,069 | 0.141 | 0.140 (0.140–0.141) | 0.011 | 0.011 (0.011–0.011) | — | — |
+| 8,192 | 2 | 719,912 | 0.281 | 0.281 (0.281–0.281) | 0.011 | 0.011 (0.010–0.011) | — | — |
+| 10,000 | 0 | 84,133,994 | 0.000 | 0.000 (0.000–0.000) | 0.010 | 0.010 (0.010–0.010) | 0.057 (0.055–0.061) | 0.056 |
+| 10,000 | 1 | 15,137,069 | 0.141 | 0.140 (0.140–0.141) | 0.010 | 0.010 (0.010–0.010) | — | — |
+| 10,000 | 2 | 719,912 | 0.281 | 0.281 (0.281–0.281) | 0.010 | 0.010 (0.009–0.010) | — | — |
 
-Zero observed doesn't mean zero risk. Only the 160 queries at the extreme ages have unrelated candidates at all, so the honest bound is: with 95% confidence, fewer than **1.9%** of such queries would ever see a false match against 920,000 records.
+**Table 1.** N = 1,000,000; seed averages, with the range over vector seeds 11, 23 and 37 in parentheses. The comparison counts are identical across D and seeds.
 
-**Ranking among genuinely similar records needs a bit more room than thresholds do.** At 920,000 candidates, 99.99% or more of each query's top ten belonged in the true top ten (100% from 1,024 dimensions up), and the top result was always the best available. Below that level, finite dimension does reorder near-ties: in each query's top 100, the share of pairs ranked the wrong way round is:
-- 11.8% at 512 dimensions
-- 0.6% at 2,048
-- essentially none at 8,192
+The measured means differ from the exact enumeration by at most 0.001. The measured standard deviations are 0.995–1.011 times the prediction $\sqrt{(1 - \mu_k^2)/D}$. The ladder of means does not depend on D; increasing D only narrows each group. Growing N from 10,000 to 1,000,000 leaves the means and spreads unchanged to three decimals, as expected. The saved summaries also hold k = 3 and k = 4, whose measured means (0.437 and 0.625 at D = 10,000) agree with 0.438 and 0.625. Only 38 comparisons have k = 4, so its spread is noisy.
 
-These are neighbours whose true similarities differ by one small step.
+## Part 2: how high zero-overlap similarity gets
 
-**Takeaway:** for a six-fact record, a million records is not a capacity problem. A few thousand dimensions keep chance similarity far below any useful match threshold. Dimension buys precise ordering among close neighbours, not safety from strangers.
+![Highest zero-overlap cosine against N](../../results/scale/figure2_zero_overlap_maximum.png)
 
-## 2. What an approximate index gives up
+**Figure 2.** The highest zero-overlap cosine across the 100-query panel at each N, one panel per D. Dots are seed means and the dark band is the seed range. The dashed line is the theoretical maximum reference for the actual number of zero-overlap comparisons. The shaded bands are the measured one-shared and two-shared means ± one standard deviation.
 
-Exact search over 920,000 records is fine for a study but slow for an application. We indexed the 2,048-dimensional complete records with LanceDB's `IVF_PQ`, using √N partitions and 128 sub-vectors, and measured how much of the exact top ten it returns.
+| D | Zero-overlap comparisons | Maximum reference | Highest zero-overlap score (seed range) | k = 1 mean − 1 std | k = 1 mean | Gap below the k = 1 mean, in k = 1 stds |
+|---:|---:|---:|---|---:|---:|---:|
+| 512 | 84,133,994 | 0.250 | 0.250 (0.234–0.258) | 0.097 | 0.141 | -2.476 |
+| 2,048 | 84,133,994 | 0.124 | 0.122 (0.120–0.127) | 0.118 | 0.140 | 0.791 |
+| 4,096 | 84,133,994 | 0.088 | 0.093 (0.088–0.096) | 0.125 | 0.141 | 3.098 |
+| 8,192 | 84,133,994 | 0.062 | 0.061 (0.060–0.061) | 0.130 | 0.140 | 7.286 |
+| 10,000 | 84,133,994 | 0.056 | 0.057 (0.055–0.061) | 0.130 | 0.140 | 8.336 |
 
-![Recall@10 of IVF_PQ is 78% without refinement at every nprobes, about 91% with refine_factor 10, and up to 99.6% with refine_factor 50](../../results/scale/experiment2_ivfpq.png)
+**Table 2.** N = 1,000,000; seed averages. The gap column is (k = 1 mean − highest zero-overlap score) / k = 1 standard deviation; a negative gap means the highest zero-overlap score lies above the one-shared mean.
 
-| nprobes (of 959) | No refinement | `refine_factor` 10 | `refine_factor` 50 |
-| --- | --- | --- | --- |
-| 10 | 78.1% | 91.3% | 96.0% |
-| 20 | 78.1% | 91.4% | 98.4% |
-| 50 | 78.1% | 91.4% | 99.5% |
-| 100 | 78.1% | 91.4% | 99.6% |
+At each D, the highest zero-overlap score:
 
-**Probing more partitions doesn't help on its own.** Without refinement, recall is 78% whether the index probes 10 partitions or 100, and 399 of 400 queries miss at least one of their exact top ten. So the partitions already contain the right neighbourhood. The loss comes from product quantization: PQ's compressed scores are off by **0.12** on average, and by up to 0.37. The exact top ten are near-ties (Experiment 1 showed they differ by one small step of similarity), so errors that size shuffle them.
+- **D = 512:** reaches into the two-shared band (above its mean minus one standard deviation).
+- **D = 2,048:** stays below the one-shared mean but inside its one-standard-deviation band.
+- **D = 4,096:** stays below the one-shared band.
+- **D = 8,192:** stays below the one-shared band.
+- **D = 10,000:** stays below the one-shared band.
 
-**The misses are swaps, not mistakes.** In every setting, every record the index returned was still a genuinely related one (at least two-thirds exact similarity), and no unrelated record crossed the match threshold. The index returns a different set of *equally good* neighbours, not wrong ones.
+Beating a group's mean is a comparison with a typical score. It does not mean every record in that group was outranked. This study does not rank results, and it does not label one shared property a false match.
 
-**Refinement recovers the exact answer.** `refine_factor` re-scores a larger candidate list with the stored full vectors. At refine 50 with 50 probes, recall is **99.5%**, and 96% of queries get their exact top ten. For context, the median query took about 4 ms without refinement and about 16 ms with probes 50 and refine 50. That was a single-threaded Python loop, not a tuned benchmark.
+How the highest zero-overlap score grows with N (seed means, with the theoretical reference):
 
-**Takeaway:** IVF_PQ is safe here for "find me people like this" on its own. When the exact ordering among close neighbours matters, add refinement (`refine_factor` ≈ 50). Probing more partitions without refinement buys nothing.
+| D | N = 10,000 | N = 100,000 | N = 1,000,000 |
+|---:|---|---|---|
+| 512 | 0.215 (reference 0.211) | 0.227 (reference 0.230) | 0.250 (reference 0.250) |
+| 2,048 | 0.100 (reference 0.105) | 0.116 (reference 0.115) | 0.122 (reference 0.124) |
+| 4,096 | 0.076 (reference 0.074) | 0.090 (reference 0.081) | 0.093 (reference 0.088) |
+| 8,192 | 0.053 (reference 0.052) | 0.060 (reference 0.057) | 0.061 (reference 0.062) |
+| 10,000 | 0.048 (reference 0.047) | 0.052 (reference 0.052) | 0.057 (reference 0.056) |
 
-## What we learned
+The maximum reference is the smallest attainable cosine whose ideal tail probability is at most 1/M₀, where M₀ is the number of zero-overlap comparisons. Every measured maximum lies within 0.008 of it. Multiplying the comparisons by 100 raises the reference by 0.039 at D = 512, 0.019 at D = 2,048, 0.014 at D = 4,096, 0.010 at D = 8,192, 0.009 at D = 10,000.
 
-| Experiment | What we found | What it suggests |
-| --- | --- | --- |
-| 1. Chance similarity at scale | Among 920,000 records, the highest score an unrelated record reached was 0.21 at 512 dimensions and 0.05 at 8,192, against match thresholds of 0.62–0.66. No false matches at any dimension; related-pair recall 99%. Wrong-order pairs among close neighbours fell from 12% to about 0 between 512 and 8,192 dimensions. | For a record of about six facts, a million records is not a capacity limit. Choose D for how precisely close neighbours must be ordered. |
-| 2. IVF_PQ against exact search | Without refinement, 78% of the exact top ten come back at any nprobes; every returned record is still related, and none is a false match. `refine_factor` 50 lifts recall to 99.5–99.6%. | The loss is PQ's score approximation reshuffling near-ties, not missed partitions. Use refinement when exact order matters. |
+### A back-of-envelope sizing rule
 
-## Reproducing this
+The normal approximation gives a rule simple enough to quote. The highest of M₀ near-independent chance scores sits about √(2 ln M₀) noise spreads above zero, where one spread is 1/√D. With M₀ = 84,133,994, that is 6.041 spreads. The one-shared mean sits μ₁√D spreads above zero, so the gap between them, in spreads, is roughly μ₁√D − √(2 ln M₀):
 
-`sh src/scale/reproduce.sh` regenerates the fixture, runs the tests and both experiments, and redraws the figures. It took about **6 minutes** on a 10-core Apple M5. LanceDB stores every random vector as float16, which is exact here because bundles are small integers, and one 920,000-record table for the index: **3.6 GB** in total. Every other vector is rebuilt from the stored atoms on the fly.
+| D | μ₁√D | Rule-of-thumb gap, μ₁√D − √(2 ln M₀) | Measured gap (Table 2) |
+|---:|---:|---:|---:|
+| 512 | 3.182 | -2.859 | -2.476 |
+| 2,048 | 6.364 | 0.323 | 0.791 |
+| 4,096 | 9.000 | 2.959 | 3.098 |
+| 8,192 | 12.728 | 6.687 | 7.286 |
+| 10,000 | 14.062 | 8.021 | 8.336 |
 
-## Limits
+**Table 4.** The rule against the measured gap from Table 2. The rule is slightly pessimistic, mainly because the √(2 ln M) approximation overshoots the expected maximum of a normal sample at this M₀.
 
-- **The fixture is synthetic.** It is a controlled factorial state space with a six-fact record, not real people. Real records with more fields, skewed values or near-duplicates will have different tails.
-- **The results are query-level, not all-pairs.** 400 queries against 920,000 candidates is a small part of the 4.2 × 10¹¹ possible pairs, so the bounds above apply per query.
-- **The scale is empirical only.** How these tails extend to billions of records is Phase 2 of HYP-83. The earlier chat's majority-sign formula does not describe this additive encoder, as explained in the [methodology](METHODOLOGY.md#applicability-of-the-earlier-chats-model).
+Solving for D: the highest chance score reaches the one-shared mean at D ≈ (√(2 ln M₀)/μ₁)² ≈ 1,846. It sits three spreads below that mean at D ≈ ((√(2 ln M₀) + 3)/μ₁)² ≈ 4,134. Both are consistent with the measurements at D = 2,048 and 4,096. Because √(2 ln M) grows so slowly, a hundred times more comparisons raise it by only about 15.7% here. The measured maximum rose by 15.1–22.9% across D, between N = 10,000 and N = 1,000,000. The rule describes this fixture's five facts and uniform values; it is not a capacity estimate for other populations.
+
+### Expected exceedances
+
+Expected exceedance counts test the tail directly, without assuming independent comparisons. The table counts the zero-overlap comparisons at N = 1,000,000 scoring at least half the one-shared mean (0.070) and at least the one-shared mean (0.141). These are fixed score levels, not match thresholds.
+
+| D | Expected ≥ 0.070 | Measured ≥ 0.070 (seed range) | Expected ≥ 0.141 | Measured ≥ 0.141 (seed range) |
+|---:|---:|---|---:|---|
+| 512 | 5,124,933 | 5,337,237 (5,158,142–5,611,537) | 70,507 | 75,819 (69,632–82,360) |
+| 2,048 | 66,132 | 62,733 (56,865–68,272) | 0.009 | 0 (0–0) |
+| 4,096 | 305 | 254 (205–343) | <0.001 | 0 (0–0) |
+| 8,192 | 0.009 | 0 (0–0) | <0.001 | 0 (0–0) |
+| 10,000 | <0.001 | 0 (0–0) | <0.001 | 0 (0–0) |
+
+**Table 3.** Expected counts are $M_0\,p_0(s)$ from the binomial survival probability. Measured counts are seed means, with seed ranges.
+
+Where the expected count is large, the measurements land close to it. At D = 512, the measured count is 1.041 times the expectation at 0.070 and 1.075 times at 0.141. At D = 2,048 it is 0.949 times, and at D = 4,096 0.832 times, with seed ranges that include the expectation. From D = 8,192, theory expects fewer than 0.01 zero-overlap comparisons above 0.070 among 84,133,994; none occurred.
+
+## Where theory agrees and where it differs
+
+- **Means and spreads agree.** Agreement is within 0.001 for the means and within 1.1% for the spreads, at every D. The exact enumeration of majority-bundle means is the right baseline; the bundling discount relative to an additive bundle (0.141 rather than 0.2 per shared fact) is real and measured.
+- **Maxima agree to within 0.008.** The maximum reference is illustrative because comparisons are dependent: the 100 queries reuse the same value vectors, and so do the candidates. In practice it tracked the measured maximum closely.
+- **Small offsets come from reused vectors.** At D = 512 the zero-overlap mean sits at 0.001 rather than 0, and its tail is slightly heavier than the ideal model (Table 3). One fixed set of role and value vectors adds a small, seed-specific correlation to every comparison. The effect shrinks with D and is invisible at three decimals from D = 2,048.
+- **Seed ranges are wider than sampling noise alone.** Seed-to-seed differences in the maximum (Table 1) reflect different vector sets, not just different draws. A single deployment has one vector set, so expect its maximum to land anywhere in a range like these.
+
+## Encoder validation
+
+Controlled pairs check the encoder before any population result. For each D and k, 20,000 random record pairs share exactly k properties and differ in the rest. They are encoded with seed 11's role and value vectors. Measured means are within 0.001 of the exact enumeration, and spreads are 0.989–1.012 times the prediction. Identical attribute records (k = 5) always score exactly 1. The [methodology](METHODOLOGY.md#encoder-validation) describes the check; `results/scale/encoder_validation.csv` holds the full precision.
+
+| D | k | Predicted mean | Measured mean | Predicted std | Measured std |
+|---:|---:|---:|---:|---:|---:|
+| 512 | 0 | 0.000 | 0.001 | 0.044 | 0.045 |
+| 512 | 1 | 0.141 | 0.142 | 0.044 | 0.044 |
+| 512 | 2 | 0.281 | 0.282 | 0.042 | 0.043 |
+| 512 | 3 | 0.438 | 0.438 | 0.040 | 0.040 |
+| 512 | 4 | 0.625 | 0.626 | 0.034 | 0.035 |
+| 512 | 5 | 1.000 | 1.000 | 0.000 | 0.000 |
+| 2,048 | 0 | 0.000 | 0.000 | 0.022 | 0.022 |
+| 2,048 | 1 | 0.141 | 0.141 | 0.022 | 0.022 |
+| 2,048 | 2 | 0.281 | 0.282 | 0.021 | 0.021 |
+| 2,048 | 3 | 0.438 | 0.438 | 0.020 | 0.020 |
+| 2,048 | 4 | 0.625 | 0.625 | 0.017 | 0.017 |
+| 2,048 | 5 | 1.000 | 1.000 | 0.000 | 0.000 |
+| 4,096 | 0 | 0.000 | 0.000 | 0.016 | 0.016 |
+| 4,096 | 1 | 0.141 | 0.141 | 0.015 | 0.016 |
+| 4,096 | 2 | 0.281 | 0.281 | 0.015 | 0.015 |
+| 4,096 | 3 | 0.438 | 0.438 | 0.014 | 0.014 |
+| 4,096 | 4 | 0.625 | 0.625 | 0.012 | 0.012 |
+| 4,096 | 5 | 1.000 | 1.000 | 0.000 | 0.000 |
+| 8,192 | 0 | 0.000 | 0.000 | 0.011 | 0.011 |
+| 8,192 | 1 | 0.141 | 0.140 | 0.011 | 0.011 |
+| 8,192 | 2 | 0.281 | 0.281 | 0.011 | 0.011 |
+| 8,192 | 3 | 0.438 | 0.437 | 0.010 | 0.010 |
+| 8,192 | 4 | 0.625 | 0.625 | 0.009 | 0.009 |
+| 8,192 | 5 | 1.000 | 1.000 | 0.000 | 0.000 |
+| 10,000 | 0 | 0.000 | 0.000 | 0.010 | 0.010 |
+| 10,000 | 1 | 0.141 | 0.141 | 0.010 | 0.010 |
+| 10,000 | 2 | 0.281 | 0.281 | 0.010 | 0.010 |
+| 10,000 | 3 | 0.438 | 0.438 | 0.009 | 0.009 |
+| 10,000 | 4 | 0.625 | 0.625 | 0.008 | 0.008 |
+| 10,000 | 5 | 1.000 | 1.000 | 0.000 | 0.000 |
+
+## Conditions and limits
+
+The results describe five independent, uniformly distributed categorical properties, majority-sign bundling of exactly five facts and exact cosine. The tested grid is D from 512 to 10,000, N up to 1,000,000 and a fixed 100-query panel. Real records have skewed value frequencies and correlated properties, which change how often pairs share values. The per-fact cosine of 0.141 also changes with the number of facts and the bundling method. The theoretical tails describe an ideal model, and agreement here does not validate them far beyond the measured range or define a universal capacity. An application still needs its own relevance rule or match threshold.
+
+## Notes for a write-up
+
+**Claims the results support, with their evidence:**
+- Each shared property adds about 0.141 cosine under five-fact majority bundling, at every D (Table 1, Figure 1).
+- Increasing N does not shift the typical score of any group; it only raises the highest chance score, slowly (Figure 2, growth table).
+- Increasing D narrows every group by about 1/√D, which is what pushes the highest chance score down (Figures 1 and 2).
+- At D = 512 and a million candidates, the highest zero-overlap score (0.250) is above the typical one-shared score (0.141). From D = 4,096 it is at least 3.098 one-shared spreads below it (Table 2).
+- Simple probability theory predicted the means, spreads, maxima and tail counts closely (Tables 1–3). The measurements validate the theory over this measured range.
+- Going from 8,192 to 10,000 dimensions buys about 10.0% less noise: a real but tapering gain.
+
+**Claims to avoid:**
+- Do not call one-shared scores false matches, or zero-overlap scores errors; whether one shared property is relevant is an application decision.
+- Do not say a one-shared record was "outranked". The comparison is with that group's typical score, not with every record in it.
+- Do not extrapolate a record capacity, or say D = 4,096 "supports a million records" in general. The conclusions depend on five facts, uniform values and majority bundling.
+- Do not present the spreads in the figures as confidence intervals; they are the scatter of individual scores.
+
+**Numbers worth quoting:** the per-fact step (0.141, against 0.2 for additive bundling), the noise floor (0.044 at D = 512, 0.010 at D = 10,000), the highest chance score at a million candidates (0.250 at D = 512, 0.057 at D = 10,000), the theory's accuracy on that maximum (within 0.008), and the run cost: about 100 million comparisons per setting, all 15 settings in 72 seconds on a laptop CPU.
+
+**Figures:** Figure 1 explains the score ladder and the role of D. Figure 2 carries the scale story. For a single figure, use Figure 2.
+
+## Files
+
+All in `results/scale/`:
+
+| File | Contents |
+|---|---|
+| `per_query.parquet` | One row per (D, seed, N, query, k): exact integer dot sums, sums of squares and maxima, plus mean, standard deviation and maximum cosine, and zero-overlap exceedance counts |
+| `cell_summary.csv` | Pooled per (D, seed, N, k), with the theoretical mean, spread, maximum reference and expected exceedances |
+| `seed_summary.csv` | Seed averages and ranges per (D, N, k) |
+| `table_n1m.csv` | Table 1 at full precision |
+| `encoder_validation.csv` | The controlled-pair check |
+| `figure1_shared_properties.png/.svg`, `figure2_zero_overlap_maximum.png/.svg` | Figures 1 and 2 |
+| `manifest.json` | Settings, seeds, library versions and timings |
+
+Regenerate everything, including this report, with `sh src/scale/reproduce.sh` from the repository root.
