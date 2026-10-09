@@ -1,61 +1,33 @@
 {
   "settings": {
     "dimensions": [
-      512,
       2048,
       4096,
-      8192,
-      10000
+      8192
     ],
-    "prefixes": [
-      10000,
-      100000,
-      1000000
+    "sizes": [
+      4000,
+      13000,
+      40000
     ],
-    "vector_seeds": [
-      11,
-      23,
-      37
+    "trials": {
+      "2048": 40,
+      "4096": 3,
+      "8192": 3
+    },
+    "matches": [
+      1,
+      2
     ],
-    "vector_draw": "torch.Generator().manual_seed(seed * 1_000_003 + D); torchhd.random roles, then values per property in order",
-    "query_panel": "first 100 records; self excluded, duplicates kept",
-    "batch": 5000,
-    "facts": [
-      "region",
-      "education",
-      "occupation",
-      "interest_cluster",
-      "employer"
-    ],
-    "cardinalities": [
-      20,
-      10,
-      100,
-      200,
-      1000
-    ],
-    "bundling": "raw coordinate-wise sum of all five bound facts (no sign)",
+    "recall": 0.999,
+    "vector_draw": "torch.Generator().manual_seed(seed * 1_000_003 + D), seed = trial",
+    "bundling": "raw coordinate-wise sum of five bound facts (no sign), int8",
     "score": "cosine: integer dot / product of the two record lengths",
-    "predicted_means": {
-      "0": 0.0,
-      "1": 0.2,
-      "2": 0.4,
-      "3": 0.6,
-      "4": 0.8,
-      "5": 1.0
-    },
-    "exceedance_scores": {
-      "half_mu1": 0.1,
-      "mu1": 0.2
-    },
-    "validation": {
-      "pairs_per_k": 20000,
-      "vector_seed": 11,
-      "data_seed": 202
-    }
+    "threshold": "q/5 - z_0.999 / sqrt(D)",
+    "tail": "binomial: H ~ Binomial(D, 1/2), score (2H - D) / D"
   },
   "records": {
-    "record_count": 1000000,
+    "record_count": 40000,
     "data_seed": 101,
     "properties": {
       "region": 20,
@@ -74,7 +46,7 @@
       3.3125000000000006e-07,
       2.5000000000000007e-10
     ],
-    "duplicate_attribute_records": 132
+    "duplicate_attribute_records": 0
   },
   "versions": {
     "python": "3.13.14",
@@ -83,31 +55,13 @@
     "polars": "1.44.1",
     "pyarrow": "25.0.1",
     "scipy": "1.18.1",
-    "matplotlib": "3.11.1",
-    "machine": "Darwin arm64",
-    "torch_threads": 4
+    "plotnine": "0.15.8",
+    "machine": "Darwin arm64"
   },
   "timings": {
-    "records_s": 0.12752991600427777,
-    "encoder_validation_s": 137.74980791599955,
-    "scan_s": {
-      "d512_s11": 2.36,
-      "d512_s23": 1.92,
-      "d512_s37": 1.77,
-      "d2048_s11": 3.13,
-      "d2048_s23": 3.13,
-      "d2048_s37": 3.28,
-      "d4096_s11": 5.21,
-      "d4096_s23": 5.17,
-      "d4096_s37": 5.2,
-      "d8192_s11": 9.07,
-      "d8192_s23": 9.05,
-      "d8192_s37": 9.02,
-      "d10000_s11": 10.87,
-      "d10000_s23": 10.8,
-      "d10000_s37": 11.1
-    },
-    "figures_s": 0.5464751249965047,
-    "total_s": 229.59226395799487
+    "d2048_s": 292.8,
+    "d4096_s": 33.8,
+    "d8192_s": 50.1,
+    "total_s": 378.3
   }
 }

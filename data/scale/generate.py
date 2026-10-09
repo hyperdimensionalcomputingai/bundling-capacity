@@ -1,9 +1,9 @@
 """Generate the synthetic categorical records for the scale study.
 
-One fixed sequence of 1,000,000 records, each with five categorical properties drawn
-uniformly and independently. The study takes nested prefixes of this sequence
-(N = 10,000, 100,000 and 1,000,000) and uses the first 100 records as its query panel,
-so the order of rows matters and is fixed by the data seed.
+One fixed sequence of 40,000 records, each with five categorical properties drawn
+uniformly and independently. The study takes nested populations of this sequence
+(the first N = 4,000, 13,000 and 40,000 records), so the order of rows matters and is
+fixed by the data seed.
 
 Run from the repository root:
 
@@ -22,9 +22,9 @@ HERE = Path(__file__).resolve().parent
 RECORDS_PATH = HERE / "records.parquet"
 SETTINGS_PATH = HERE / "settings.json"
 
-# Design choices for this study, not estimates of real-world frequencies. Five properties
-# keep the majority-sign bundle free of ties; the cardinalities span two to three orders
-# of magnitude so that shared values are common for some properties and rare for others.
+# Design choices for this study, not estimates of real-world frequencies. The cardinalities
+# span two to three orders of magnitude so that shared values are common for some
+# properties and rare for others.
 PROPERTIES = {
     "region": 20,
     "education": 10,
@@ -32,7 +32,7 @@ PROPERTIES = {
     "interest_cluster": 200,
     "employer": 1_000,
 }
-RECORD_COUNT = 1_000_000
+RECORD_COUNT = 40_000
 DATA_SEED = 101
 
 
