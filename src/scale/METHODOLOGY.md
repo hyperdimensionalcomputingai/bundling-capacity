@@ -12,7 +12,7 @@ We compare the cosine similarity of two complete record hypervectors. Both query
 
 The study measures how faithfully cosine reflects the number of shared properties as N and D change. It does not declare how many shared properties make a valid application match or whether two records describe the same person.
 
-The questionnaire study looked inside additive bundles. This study looks at comparisons between records and uses majority-sign bundles. That choice needs its own small validation; the previous study does not establish its behaviour.
+The questionnaire study looked inside additive bundles. This study keeps the same raw sums, so every fact can still be unbound, and looks at comparisons between records. The previous study does not establish that behaviour, so the encoder gets its own small validation.
 
 Approximate indexes are out of scope. The study uses exact cosine comparisons so it measures the representation's behaviour directly.
 
@@ -34,7 +34,7 @@ Every pair belongs to exactly one k group, decided from the original categorical
 The explanation needs three ideas:
 
 1. **Zero-overlap bundles are almost orthogonal.** Their cosine fluctuates around zero, with a standard deviation of about 1/√D: 0.044 at 512 dimensions, 0.011 at 8,192 and 0.010 at 10,000.
-2. **Shared facts raise the expected cosine.** For five-fact majority bundles, one matching property gives an expected cosine of 0.140625; two give 0.28125. Increasing D narrows the fluctuations around these values.
+2. **Shared facts raise the expected cosine.** For five-fact raw-sum bundles, one matching property gives an expected cosine of 1/5 = 0.2; two give 0.4. Increasing D narrows the fluctuations around these values.
 3. **More comparisons give more opportunities for an unusually high score.** Even if the typical zero-overlap score stays near zero, its highest observed score can rise as the candidate population grows. Compare that maximum with the scores of records sharing one or two properties.
 
 Theory establishes the expected separation and tail probabilities under an ideal random-vector model. Measurements show how well those predictions describe a population that reuses the same property and value vectors throughout.
@@ -53,11 +53,11 @@ $$
 h_{\mathrm{record}} = h_{\mathrm{fact},1} \oplus h_{\mathrm{fact},2} \oplus h_{\mathrm{fact},3} \oplus h_{\mathrm{fact},4} \oplus h_{\mathrm{fact},5}.
 $$
 
-Here binding is element-wise multiplication. Bundling takes the coordinate-wise majority sign of all five facts in one operation. Do not apply the sign after intermediate pairwise combinations. Five is odd, so majority sign never ties. Queries and candidates use this same encoder.
+Here binding is element-wise multiplication. Bundling is the coordinate-wise sum of all five facts, with no sign, so each coordinate is −5, −3, −1, 1, 3 or 5. Queries and candidates use this same encoder. Cosine divides the dot product by the product of the two records' lengths.
 
-- **Expected cosine:** $\mu_k$ is computed exactly by enumerating the bipolar inputs to two five-fact majority bundles with k shared facts. For k = 0–5, the values are 0, 0.140625, 0.28125, 0.4375, 0.625 and 1.
-- **Spread:** $\sigma_k = \sqrt{(1 - \mu_k^2)/D}$.
-- **Per-comparison tail probability:** under the ideal model, the number H of agreeing coordinates follows $\operatorname{Binomial}(D, (1 + \mu_k)/2)$. For any reference cosine s, compute $p_k(s) = P(H \geq \lceil D(1 + s)/2 \rceil)$ from the binomial survival probability. The normal approximation $p_k(s) \approx \Phi(-(s - \mu_k)/\sigma_k)$ explains the bell-curve intuition, but is not used to calculate extreme tails. A reference cosine is a score level, not an application match threshold.
+- **Expected cosine:** each shared fact meets itself in the dot product and adds D; every other product averages 0. Each record's length is about $\sqrt{5D}$, so $\mu_k = k/5$: 0, 0.2, 0.4, 0.6, 0.8 and 1 for k = 0–5.
+- **Spread:** for zero overlap, $\sigma_0 = 1/\sqrt{D}$. Shared facts narrow the spread a little; those spreads are measured, not predicted.
+- **Per-comparison tail probability (zero overlap):** model the score as $(2H - D)/D$ with $H \sim \operatorname{Binomial}(D, 1/2)$, and compute $p_0(s) = P(H \geq \lceil D(1 + s)/2 \rceil)$ from the binomial survival probability. The model is exact for ±1 records; for raw sums it has the right mean and spread, and its far tail is a little light. The normal approximation $p_k(s) \approx \Phi(-(s - \mu_k)/\sigma_k)$ explains the bell-curve intuition, but is not used to calculate extreme tails. A reference cosine is a score level, not an application match threshold.
 - **Expected exceedances:** among $M_k$ comparisons in group k, the expected number scoring at least s is $M_k p_k(s)$. This connects the per-pair distribution to the scale of the population without defining false or missed matches.
 
 For orientation, the expected cosine is independent of D, while the predicted standard deviation narrows as D increases:
@@ -65,8 +65,8 @@ For orientation, the expected cosine is independent of D, while the predicted st
 | Shared properties | Expected cosine | Standard deviation at D = 512 | Standard deviation at D = 8,192 | Standard deviation at D = 10,000 |
 |---|---|---|---|---|
 | 0 | 0 | about 0.044 | about 0.011 | about 0.0100 |
-| 1 | 0.140625 | about 0.044 | about 0.011 | about 0.0099 |
-| 2 | 0.28125 | about 0.042 | about 0.011 | about 0.0096 |
+| 1 | 0.2 | measured | measured | measured |
+| 2 | 0.4 | measured | measured | measured |
 
 These are theoretical predictions, not measured results. The implementation recomputes them from the formulas. Tail probabilities describe ideal limits; they do not establish a universal number of records that fit in D dimensions.
 
@@ -134,22 +134,22 @@ The report also tabulates how the maximum grows with N, and the expected and mea
 
 Before any population result, controlled pairs check the encoder against the theory. For each D and each k = 0–5, 20,000 random record pairs share exactly k properties: the shared properties are chosen at random, and every other property takes a different value. The pairs are encoded with vector seed 11's role and value vectors. Values are reused across pairs, as they are in the population, so the check runs under realistic conditions, not the ideal independent-vector model.
 
-Measured means fall within 0.001 of the exact enumeration, and spreads within about 1% of $\sigma_k$, at every D. Identical attribute records always score exactly 1. The deviations of the mean are a few times larger than independent sampling would allow. They share a sign within each D, because reusing one vector set adds a small, seed-specific correlation; the population results show the same offset. The full table is in the [report](REPORT.md#encoder-validation) and `results/scale/encoder_validation.csv`.
+Measured means fall within 0.001 of k/5, and zero-overlap spreads within about 1% of $1/\sqrt{D}$, at every D. Identical attribute records always score exactly 1. The deviations of the mean are a few times larger than independent sampling would allow. They share a sign within each D, because reusing one vector set adds a small, seed-specific correlation; the population results show the same offset. The full table is in the [report](REPORT.md#encoder-validation) and `results/scale/encoder_validation.csv`.
 
 ## Implementation
 
 - **One run script.** `run.py` regenerates the records, runs the encoder validation, scans every (D, seed), and writes the summaries, figures, table and report. `study.py` holds the encoder, the theory and the scan; `report.py` writes the report from the saved summaries. `data/scale/generate.py` generates the records.
 - **No stored hypervectors.** Role and value vectors are regenerated deterministically from the vector seed and D (`torch.Generator().manual_seed(seed * 1_000_003 + D)`, drawn with `torchhd.random`). Records are a Parquet file of categorical codes. LanceDB is not used: exact comparison against an in-memory batch needs no index, and the vectors take seconds to rebuild.
-- **Exact arithmetic.** Bound facts are precomputed per property as int8, and a batch of records is encoded by lookup, an int8 sum and one sign. Similarity is a float32 matrix product of ±1 vectors, whose integer results are exact at these D. Per query and k, the scan accumulates the dot products, their squares and their maximum as int64, so pooled means and standard deviations are exact up to the final float64 division.
+- **Arithmetic.** Bound facts are precomputed per property as int8, and a batch of records is encoded by lookup and an int8 sum, with no sign. Dot products are exact integers at these D; each cosine is computed in float64. Per query and k, the scan accumulates the cosines, their squares and their maximum in float64.
 - **Deterministic seeds and a manifest.** `manifest.json` records settings, library versions and timings.
-- **Not included.** The study has no approximate-index benchmark, ordinal encoding, additive record bundles, field-similarity baseline, calibrated thresholds, score histograms or ranking diagnostics. Bit-packing is out of scope.
+- **Not included.** The study has no approximate-index benchmark, ordinal encoding, majority-sign record bundles, field-similarity baseline, calibrated thresholds, score histograms or ranking diagnostics. Bit-packing is out of scope.
 
 ## Acceptance checks
 
 These are implemented in `tests/test_study.py`, which runs, together with Ruff, before the full study.
 
-- The encoder binds each categorical value to its own property role and majority-bundles exactly five facts, identically for queries and candidates.
-- A small controlled-pair check compares measured means and spreads with the theoretical predictions for k = 0–5. Compute the majority-bundle means by exact enumeration.
+- The encoder binds each categorical value to its own property role and sums exactly five facts with no sign, identically for queries and candidates. Unbinding a role from a record recovers its value.
+- A small controlled-pair check compares measured means and spreads with the theoretical predictions for k = 0–5. Measured means agree with k/5.
 - Hand-built records verify shared-property counts k = 0–5, duplicate handling and self-exclusion.
 - A small end-to-end run agrees with direct brute-force cosines, group counts, means, standard deviations, maxima and prefix summaries.
 - Theoretical means, spreads and binomial maximum references are computed from the formulas, respecting the discrete cosine values, rather than copied from the illustrative table.
@@ -157,7 +157,7 @@ These are implemented in `tests/test_study.py`, which runs, together with Ruff, 
 
 ## What the results establish
 
-The study measures how increasing N and D affects exact similarity comparisons for five categorical facts under majority-sign bundling, through one million candidates and about 100 million comparisons per setting.
+The study measures how increasing N and D affects exact similarity comparisons for five categorical facts under raw-sum bundling, through one million candidates and about 100 million comparisons per setting.
 
 Theory provides a baseline for typical similarities and extreme scores. Agreement in the measured range supports that baseline there; it does not validate its extreme tails or establish a universal storage capacity.
 

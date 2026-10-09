@@ -18,7 +18,9 @@ REPORT_PATH = Path(__file__).resolve().parent / "REPORT.md"
 LARGEST = max(study.PREFIXES)
 
 
-def f3(x: float) -> str:
+def f3(x: float | None) -> str:
+    if x is None:
+        return "—"
     text = f"{x:.3f}"
     return "0.000" if text == "-0.000" else text
 
@@ -233,7 +235,8 @@ def write_report(summary, validation, data_settings, timings):
 
     at_n = summary.filter((pl.col("n") == LARGEST) & (pl.col("k") <= 2))
     mean_error = (at_n["mean_seed_mean"] - at_n["predicted_mean"]).abs().max()
-    ratio = at_n["std_seed_mean"] / at_n["predicted_std"]
+    zero_n = at_n.filter(pl.col("k") == 0)
+    ratio = zero_n["std_seed_mean"] / zero_n["predicted_std"]
     every_cell = summary.filter(pl.col("k") == 0)
     max_error = (every_cell["max_seed_mean"] - every_cell["max_reference"]).abs().max()
     counts = {
@@ -252,13 +255,35 @@ def write_report(summary, validation, data_settings, timings):
     separated = [d for d in study.DIMENSIONS if by_d[d]["gap"] >= 3]
     sigmas = [f["sigmas"] for f in maxima]
     validation_error = (validation["measured_mean"] - validation["predicted_mean"]).abs().max()
-    val_ratio = (validation["measured_std"] / validation["predicted_std"]).drop_nans()
+    zero_val = validation.filter(pl.col("k") == 0)
+    val_ratio = zero_val["measured_std"] / zero_val["predicted_std"]
     scan_seconds = sum(timings["scan_s"].values())
     rises = ", ".join(
         f"{f3(row(summary, dimension=d, n=LARGEST, k=0)['max_reference'] - row(summary, dimension=d, n=min(study.PREFIXES), k=0)['max_reference'])} at D = {dims(d)}"
         for d in study.DIMENSIONS
     )
     middle = by_d[study.DIMENSIONS[1]]
+    middle_sentence = (
+        "" if middle["d"] in separated else f"At D = {dims(middle['d'])} it {relation(middle)}. "
+    )
+    compared = [
+        f"{f3(f['measured'] / f['expected'])} times the expectation at "
+        f"{f3(MU[1] / 2 if f['name'] == 'half_mu1' else MU[1])} for D = {dims(f['d'])}"
+        for f in exceed
+        if f["expected"] >= 1
+    ]
+    quiet = [d for d in study.DIMENSIONS if ex[(d, "half_mu1")]["expected"] < 0.01]
+    exceed_text = (
+        "Where the expected count is at least one, the measured count is "
+        + "; ".join(compared)
+        + f". From D = {dims(quiet[0])}, the binomial model expects fewer than 0.01 "
+        f"zero-overlap comparisons at or above {f3(MU[1] / 2)} among {whole(counts[0])}; "
+        + (
+            "none occurred."
+            if all(ex[(d, "half_mu1")]["measured"] == 0 for d in quiet)
+            else "some occurred."
+        )
+    )
     sizing_md, sizing = sizing_rule(summary, maxima)
     rise_pct = [
         100
@@ -277,29 +302,29 @@ def write_report(summary, validation, data_settings, timings):
 
     text = f"""# Bundled categorical records at scale
 
-This report covers the scale study described in the [methodology](METHODOLOGY.md): exact cosine comparisons between majority-bundled records of five categorical properties, against populations of up to one million records, at five hypervector dimensions. All values are rounded to three decimals; comparison counts are whole numbers.
+This report covers the scale study described in the [methodology](METHODOLOGY.md): exact cosine comparisons between records that bundle five categorical properties as a raw sum, against populations of up to one million records, at five hypervector dimensions. All values are rounded to three decimals; comparison counts are whole numbers.
 
 ## In brief
 
-A hypervector record can be compared with a million others by cosine similarity. Two records that share nothing still score a little above or below zero by chance, and with enough candidates, one of those chance scores gets surprisingly high. This study measured how high, and whether it can be confused with the score of a record that genuinely shares one or two properties. Theory predicted the answers almost exactly. Each shared property adds about {f3(MU[1])} to the cosine. Chance scores scatter by about 1/√D. The highest chance score among {whole(counts[0])} comparisons sits about {f3(sum(sigmas) / len(sigmas))} of those spreads above zero. At D = {dims(first)} that is {f3(by_d[first]["max"])}, more than one shared property is worth. At D = 4,096 and above it stays clearly below.
+A hypervector record can be compared with a million others by cosine similarity. Two records that share nothing still score a little above or below zero by chance, and with enough candidates, one of those chance scores gets surprisingly high. This study measured how high, and whether it can be confused with the score of a record that genuinely shares one or two properties. Theory predicted the answers almost exactly. Each shared property adds about {f3(MU[1])} to the cosine. Chance scores scatter by about 1/√D. The highest chance score among {whole(counts[0])} comparisons sits about {f3(sum(sigmas) / len(sigmas))} of those spreads above zero. At D = {dims(first)} that is {f3(by_d[first]["max"])}, more than one shared property is worth. From D = {dims(separated[0])} it stays clearly below.
 
 ## Background for readers new to hypervectors
 
-- **Hypervectors.** A hypervector is a long list of D numbers. Here every entry is +1 or −1, chosen at random. Two independent random hypervectors are almost orthogonal: their cosine similarity is close to 0, scattering by about 1/√D (0.044 at D = 512, 0.010 at D = 10,000). That scatter is the noise floor of everything below.
+- **Hypervectors.** A hypervector is a long list of D numbers. Every role and value hypervector here has entries of +1 or −1, chosen at random. Two independent random hypervectors are almost orthogonal: their cosine similarity is close to 0, scattering by about 1/√D (0.044 at D = 512, 0.010 at D = 10,000). That scatter is the noise floor of everything below.
 - **Binding ($\\otimes$).** Element-wise multiplication. Binding a property's role vector (say, "employer") with a value vector (say, employer no. 412) gives a new random-looking vector, a *fact*, unrelated to either input and to facts about other properties. Two records with the same employer produce the identical employer fact.
-- **Bundling ($\\oplus$).** Combines the five facts into one record vector of the same length. This study uses *majority-sign* bundling: at each coordinate, the record takes the sign held by at least three of the five facts. The result stays a ±1 vector and is similar to each of its facts.
-- **Cosine similarity.** For ±1 vectors, cosine is the fraction of agreeing coordinates minus the fraction of disagreeing ones: 1 for identical vectors, about 0 for unrelated ones.
-- **Why one shared fact is worth {f3(MU[1])}, not 0.2.** If the vectors were simply added, one shared fact out of five would give cosine 1/5 = 0.2. Majority voting loses some of that. A shared fact can only make two records agree at a coordinate where it casts the deciding vote in *both* records. That happens when each record's other four facts split 2–2, with probability 6/16 = 3/8 per record. So the shared fact decides both records with probability (3/8)² = 9/64 = {f3(MU[1])}. Everywhere else, the two signs are independent and average out to zero. Two or more shared facts are worked out by enumerating every combination of signs: {f3(MU[2])}, {f3(MU[3])}, {f3(MU[4])} and 1 for k = 2 to 5.
+- **Bundling ($\\oplus$).** Adds the five facts coordinate by coordinate into one record vector of the same length. No sign is applied, so each coordinate is −5, −3, −1, 1, 3 or 5, and any fact can still be unbound from the record.
+- **Cosine similarity.** The dot product of two records divided by the product of their lengths: 1 for identical records, about 0 for unrelated ones.
+- **Why one shared fact is worth {f3(MU[1])}.** Multiplying two records coordinate by coordinate, a shared fact meets itself and contributes +1; every other product pairs unrelated terms and averages 0. The dot product is therefore about D per shared fact, and each record's length is about √(5D). One shared fact gives D / 5D = 1/5; k shared facts give k/5.
 - **Why more candidates mean higher chance scores.** Each zero-overlap comparison is one random draw from a narrow bell curve around 0. The more draws, the further the most extreme one reaches into the tail. That tail thins very fast, so the maximum grows only with the square root of the logarithm of the number of comparisons.
 
 ## What a practitioner can expect
 
-These rules of thumb hold under the measured conditions: five uniformly drawn categorical properties, one majority-sign bundle per record, exact cosine.
+These rules of thumb hold under the measured conditions: five uniformly drawn categorical properties, one raw-sum bundle per record, exact cosine.
 
-1. **Each shared property is worth about 0.14 cosine.** Records sharing zero, one, two or three properties score {f3(MU[0])}, {f3(MU[1])}, {f3(MU[2])} and {f3(MU[3])} on average, at every D and N tested. The measured means match these predictions to within {f3(mean_error)}.
+1. **Each shared property is worth {f3(MU[1])} cosine.** Records sharing zero, one, two or three properties score {f3(MU[0])}, {f3(MU[1])}, {f3(MU[2])} and {f3(MU[3])} on average, at every D and N tested. The measured means match these predictions to within {f3(mean_error)}.
 2. **D sets the noise; N does not.** The spread of individual scores is about 1/√D: {f3(row(summary, dimension=first, n=LARGEST, k=0)["std_seed_mean"])} at D = {dims(first)} and {f3(row(summary, dimension=last, n=LARGEST, k=0)["std_seed_mean"])} at D = {dims(last)}. Adding candidates only adds more draws from the same distribution.
 3. **The highest zero-overlap score rises slowly with N.** From 10,000 to 1,000,000 candidates (100 times as many), it rose from {f3(small[first]["max_seed_mean"])} to {f3(by_d[first]["max"])} at D = {dims(first)}, and from {f3(small[last]["max_seed_mean"])} to {f3(by_d[last]["max"])} at D = {dims(last)}. At a million candidates it sat {f3(min(sigmas))}–{f3(max(sigmas))} standard deviations above zero.
-4. **At D = {dims(first)}, a million candidates are too many to keep chance scores below one shared property.** The highest zero-overlap score ({f3(by_d[first]["max"])}) exceeds the typical one-shared score ({f3(by_d[first]["one_mean"])}). At D = {dims(middle["d"])} it {relation(middle)}. From D = {dims(separated[0])} it sits at least {f3(min(by_d[d]["gap"] for d in separated))} one-shared standard deviations below the one-shared mean.
+4. **At D = {dims(first)}, a million candidates are too many to keep chance scores below one shared property.** The highest zero-overlap score ({f3(by_d[first]["max"])}) exceeds the typical one-shared score ({f3(by_d[first]["one_mean"])}). {middle_sentence}From D = {dims(separated[0])} it sits at least {f3(min(by_d[d]["gap"] for d in separated))} one-shared standard deviations below the one-shared mean.
 5. **The binomial model predicts the extremes well enough to size D in advance.** Across every D and N, the measured maximum stayed within {f3(max_error)} of the theoretical reference.
 6. **Gains taper beyond 8,192 dimensions.** Moving to 10,000 dimensions narrowed the zero-overlap spread by {pct(narrower_measured)} (predicted {pct(narrower_predicted)}) and lowered the highest zero-overlap score from {f3(by_d[8_192]["max"])} to {f3(by_d[10_000]["max"])}.
 
@@ -308,7 +333,7 @@ None of this sets a match threshold. Whether one shared property counts as relev
 ## Setup
 
 - **Records.** {whole(data_settings["record_count"])} synthetic records with five independent, uniformly drawn properties: region (20 values), education (10), occupation (100), interest cluster (200) and employer (1,000). Data seed {data_settings["data_seed"]}. The sequence contains {whole(data_settings["duplicate_attribute_records"])} duplicate attribute records.
-- **Encoder.** Each property has a random bipolar role vector and each value a random bipolar value vector. A record is the coordinate-wise majority sign of its five bound facts, $h_{{\\mathrm{{record}}}} = h_{{\\mathrm{{fact}},1}} \\oplus \\cdots \\oplus h_{{\\mathrm{{fact}},5}}$ with $h_{{\\mathrm{{fact}},i}} = h_{{\\mathrm{{role}},i}} \\otimes h_{{\\mathrm{{value}},i}}$.
+- **Encoder.** Each property has a random bipolar role vector and each value a random bipolar value vector. A record is the coordinate-wise sum of its five bound facts, with no sign applied, $h_{{\\mathrm{{record}}}} = h_{{\\mathrm{{fact}},1}} \\oplus \\cdots \\oplus h_{{\\mathrm{{fact}},5}}$ with $h_{{\\mathrm{{fact}},i}} = h_{{\\mathrm{{role}},i}} \\otimes h_{{\\mathrm{{value}},i}}$.
 - **Comparisons.** The first 100 records are queries. Each is compared, by exact cosine, with every other record in nested prefixes N = 10,000, 100,000 and 1,000,000. That makes {whole(total)} directed comparisons at the largest prefix for each D and vector seed. A query's own record is excluded.
 - **Grid.** D = 512, 2,048, 4,096, 8,192 and 10,000; vector seeds 11, 23 and 37. Each (D, seed) is one pass through the million records. The 15 passes took {whole(scan_seconds)} seconds in total on one laptop CPU.
 - **Groups.** Pairs are grouped by k, the number of properties with identical values, from the categorical records alone. At N = 1,000,000 the panel has {whole(counts[0])} comparisons with k = 0, {whole(counts[1])} with k = 1, {whole(counts[2])} with k = 2, {whole(counts[3])} with k = 3, {whole(counts[4])} with k = 4 and {whole(counts[5])} with k = 5. None of the 100 queries happens to have a duplicate attribute record. These counts are the same for every D and seed.
@@ -316,7 +341,7 @@ None of this sets a match threshold. Whether one shared property counts as relev
 ### Terms used in this report
 
 - **k, shared properties.** The number of properties on which two records have identical values, counted from the raw categorical records before any encoding. Groups are called *zero shared* (k = 0, also *zero-overlap*), *one shared* (k = 1) and *two shared* (k = 2).
-- **Predicted mean and spread.** $\\mu_k$ from exact enumeration, and $\\sigma_k = \\sqrt{{(1 - \\mu_k^2)/D}}$, the standard deviation of a single score under the ideal model of independent random vectors.
+- **Predicted mean and spread.** $\\mu_k = k/5$, and for zero overlap $\\sigma_0 = 1/\\sqrt{{D}}$, the standard deviation of a single score under the ideal model of independent random vectors. Spreads for shared properties are measured, not predicted.
 - **Measured mean and spread.** Pooled over every comparison in a group (all 100 queries), per vector seed, then averaged over the three seeds. "Std" always means the spread of individual scores, never an uncertainty of the mean.
 - **Highest zero-overlap score.** The single largest cosine among all zero-overlap comparisons for the whole query panel at a given N, D and seed.
 - **Maximum reference.** The cosine that an ideal model expects about one zero-overlap comparison in M₀ to reach. It is a reference level for the maximum, not a bound.
@@ -333,7 +358,7 @@ None of this sets a match threshold. Whether one shared property counts as relev
 
 **Table 1.** N = 1,000,000; seed averages, with the range over vector seeds 11, 23 and 37 in parentheses. The comparison counts are identical across D and seeds.
 
-The measured means differ from the exact enumeration by at most {f3(mean_error)}. The measured standard deviations are {f3(ratio.min())}–{f3(ratio.max())} times the prediction $\\sqrt{{(1 - \\mu_k^2)/D}}$. The ladder of means does not depend on D; increasing D only narrows each group. Growing N from 10,000 to 1,000,000 leaves the means and spreads unchanged to three decimals, as expected. The saved summaries also hold k = 3 and k = 4, whose measured means ({f3(row(summary, dimension=last, n=LARGEST, k=3)["mean_seed_mean"])} and {f3(row(summary, dimension=last, n=LARGEST, k=4)["mean_seed_mean"])} at D = {dims(last)}) agree with {f3(MU[3])} and {f3(MU[4])}. Only {whole(counts[4])} comparisons have k = 4, so its spread is noisy.
+The measured means differ from k/5 by at most {f3(mean_error)}. The zero-overlap standard deviations are {f3(ratio.min())}–{f3(ratio.max())} times 1/√D; shared facts narrow the spread a little, because shared terms always contribute the same +1. The ladder of means does not depend on D; increasing D only narrows each group. Growing N from 10,000 to 1,000,000 leaves the means and spreads unchanged to three decimals, as expected. The saved summaries also hold k = 3 and k = 4, whose measured means ({f3(row(summary, dimension=last, n=LARGEST, k=3)["mean_seed_mean"])} and {f3(row(summary, dimension=last, n=LARGEST, k=4)["mean_seed_mean"])} at D = {dims(last)}) agree with {f3(MU[3])} and {f3(MU[4])}. Only {whole(counts[4])} comparisons have k = 4, so its spread is noisy.
 
 ## Part 2: how high zero-overlap similarity gets
 
@@ -365,7 +390,7 @@ The normal approximation gives a rule simple enough to quote. The highest of M�
 
 **Table 4.** The rule against the measured gap from Table 2. The rule is slightly pessimistic, mainly because the √(2 ln M) approximation overshoots the expected maximum of a normal sample at this M₀.
 
-Solving for D: the highest chance score reaches the one-shared mean at D ≈ (√(2 ln M₀)/μ₁)² ≈ {whole(sizing["needed"][0])}. It sits three spreads below that mean at D ≈ ((√(2 ln M₀) + 3)/μ₁)² ≈ {whole(sizing["needed"][3])}. Both are consistent with the measurements at D = 2,048 and 4,096. Because √(2 ln M) grows so slowly, a hundred times more comparisons raise it by only about {growth:.1f}% here. The measured maximum rose by {min(rise_pct):.1f}–{max(rise_pct):.1f}% across D, between N = 10,000 and N = 1,000,000. The rule describes this fixture's five facts and uniform values; it is not a capacity estimate for other populations.
+Solving for D: the highest chance score reaches the one-shared mean at D ≈ (√(2 ln M₀)/μ₁)² ≈ {whole(sizing["needed"][0])}. It sits three spreads below that mean at D ≈ ((√(2 ln M₀) + 3)/μ₁)² ≈ {whole(sizing["needed"][3])}. Both are consistent with the measurements: at D = {dims(first)} the measured maximum is above the one-shared mean, and at D = {dims(separated[0])} it sits {f3(by_d[separated[0]]['gap'])} one-shared spreads below it. Because √(2 ln M) grows so slowly, a hundred times more comparisons raise it by only about {growth:.1f}% here. The measured maximum rose by {min(rise_pct):.1f}–{max(rise_pct):.1f}% across D, between N = 10,000 and N = 1,000,000. The rule describes this fixture's five facts and uniform values; it is not a capacity estimate for other populations.
 
 ### Expected exceedances
 
@@ -375,29 +400,30 @@ Expected exceedance counts test the tail directly, without assuming independent 
 
 **Table 3.** Expected counts are $M_0\\,p_0(s)$ from the binomial survival probability. Measured counts are seed means, with seed ranges.
 
-Where the expected count is large, the measurements land close to it. At D = 512, the measured count is {f3(ex[(512, "half_mu1")]["measured"] / ex[(512, "half_mu1")]["expected"])} times the expectation at {f3(MU[1] / 2)} and {f3(ex[(512, "mu1")]["measured"] / ex[(512, "mu1")]["expected"])} times at {f3(MU[1])}. At D = 2,048 it is {f3(ex[(2048, "half_mu1")]["measured"] / ex[(2048, "half_mu1")]["expected"])} times, and at D = 4,096 {f3(ex[(4096, "half_mu1")]["measured"] / ex[(4096, "half_mu1")]["expected"])} times, with seed ranges that include the expectation. From D = 8,192, theory expects fewer than 0.01 zero-overlap comparisons above {f3(MU[1] / 2)} among {whole(counts[0])}; none occurred.
+{exceed_text}
 
 ## Where theory agrees and where it differs
 
-- **Means and spreads agree.** Agreement is within {f3(mean_error)} for the means and within {pct(max(abs(1 - ratio.min()), abs(ratio.max() - 1)))} for the spreads, at every D. The exact enumeration of majority-bundle means is the right baseline; the bundling discount relative to an additive bundle (0.141 rather than 0.2 per shared fact) is real and measured.
+- **Means and spreads agree.** Agreement is within {f3(mean_error)} for the means and within {pct(max(abs(1 - ratio.min()), abs(ratio.max() - 1)))} for the zero-overlap spread, at every D.
+- **The binomial tail is an approximation for raw sums.** It is exact for ±1 records. A raw-sum zero-overlap score has the same mean (0) and spread (1/√D), but each coordinate's product ranges from −25 to 25, so its far tail is a little heavier than the binomial's. Table 3 shows this at D = 512: more zero-overlap comparisons reach the one-shared mean than the binomial model expects.
 - **Maxima agree to within {f3(max_error)}.** The maximum reference is illustrative because comparisons are dependent: the 100 queries reuse the same value vectors, and so do the candidates. In practice it tracked the measured maximum closely.
-- **Small offsets come from reused vectors.** At D = 512 the zero-overlap mean sits at {f3(row(summary, dimension=first, n=LARGEST, k=0)["mean_seed_mean"])} rather than 0, and its tail is slightly heavier than the ideal model (Table 3). One fixed set of role and value vectors adds a small, seed-specific correlation to every comparison. The effect shrinks with D and is invisible at three decimals from D = 2,048.
+- **Small offsets come from reused vectors.** At D = 512 the zero-overlap mean sits at {f3(row(summary, dimension=first, n=LARGEST, k=0)["mean_seed_mean"])} rather than 0. One fixed set of role and value vectors adds a small, seed-specific correlation to every comparison. The effect shrinks with D and is invisible at three decimals from D = 2,048.
 - **Seed ranges are wider than sampling noise alone.** Seed-to-seed differences in the maximum (Table 1) reflect different vector sets, not just different draws. A single deployment has one vector set, so expect its maximum to land anywhere in a range like these.
 
 ## Encoder validation
 
-Controlled pairs check the encoder before any population result. For each D and k, {whole(validation["pairs"][0])} random record pairs share exactly k properties and differ in the rest. They are encoded with seed 11's role and value vectors. Measured means are within {f3(validation_error)} of the exact enumeration, and spreads are {f3(val_ratio.min())}–{f3(val_ratio.max())} times the prediction. Identical attribute records (k = 5) always score exactly 1. The [methodology](METHODOLOGY.md#encoder-validation) describes the check; `results/scale/encoder_validation.csv` holds the full precision.
+Controlled pairs check the encoder before any population result. For each D and k, {whole(validation["pairs"][0])} random record pairs share exactly k properties and differ in the rest. They are encoded with seed 11's role and value vectors. Measured means are within {f3(validation_error)} of k/5, and zero-overlap spreads are {f3(val_ratio.min())}–{f3(val_ratio.max())} times 1/√D. Identical attribute records (k = 5) always score exactly 1. The [methodology](METHODOLOGY.md#encoder-validation) describes the check; `results/scale/encoder_validation.csv` holds the full precision.
 
 {validation_table(validation)}
 
 ## Conditions and limits
 
-The results describe five independent, uniformly distributed categorical properties, majority-sign bundling of exactly five facts and exact cosine. The tested grid is D from 512 to 10,000, N up to 1,000,000 and a fixed 100-query panel. Real records have skewed value frequencies and correlated properties, which change how often pairs share values. The per-fact cosine of {f3(MU[1])} also changes with the number of facts and the bundling method. The theoretical tails describe an ideal model, and agreement here does not validate them far beyond the measured range or define a universal capacity. An application still needs its own relevance rule or match threshold.
+The results describe five independent, uniformly distributed categorical properties, raw-sum bundling of exactly five facts and exact cosine. The tested grid is D from 512 to 10,000, N up to 1,000,000 and a fixed 100-query panel. Real records have skewed value frequencies and correlated properties, which change how often pairs share values. The per-fact cosine of {f3(MU[1])} also changes with the number of facts and the bundling method. The theoretical tails describe an ideal model, and agreement here does not validate them far beyond the measured range or define a universal capacity. An application still needs its own relevance rule or match threshold.
 
 ## Notes for a write-up
 
 **Claims the results support, with their evidence:**
-- Each shared property adds about {f3(MU[1])} cosine under five-fact majority bundling, at every D (Table 1, Figure 1).
+- Each shared property adds about {f3(MU[1])} cosine under five-fact raw-sum bundling, at every D (Table 1, Figure 1).
 - Increasing N does not shift the typical score of any group; it only raises the highest chance score, slowly (Figure 2, growth table).
 - Increasing D narrows every group by about 1/√D, which is what pushes the highest chance score down (Figures 1 and 2).
 - At D = {dims(first)} and a million candidates, the highest zero-overlap score ({f3(by_d[first]["max"])}) is above the typical one-shared score ({f3(by_d[first]["one_mean"])}). From D = 4,096 it is at least {f3(min(by_d[d]["gap"] for d in separated))} one-shared spreads below it (Table 2).
@@ -407,10 +433,10 @@ The results describe five independent, uniformly distributed categorical propert
 **Claims to avoid:**
 - Do not call one-shared scores false matches, or zero-overlap scores errors; whether one shared property is relevant is an application decision.
 - Do not say a one-shared record was "outranked". The comparison is with that group's typical score, not with every record in it.
-- Do not extrapolate a record capacity, or say D = 4,096 "supports a million records" in general. The conclusions depend on five facts, uniform values and majority bundling.
+- Do not extrapolate a record capacity, or say D = 4,096 "supports a million records" in general. The conclusions depend on five facts, uniform values and raw-sum bundling.
 - Do not present the spreads in the figures as confidence intervals; they are the scatter of individual scores.
 
-**Numbers worth quoting:** the per-fact step ({f3(MU[1])}, against 0.2 for additive bundling), the noise floor (0.044 at D = 512, 0.010 at D = 10,000), the highest chance score at a million candidates ({f3(by_d[first]["max"])} at D = {dims(first)}, {f3(by_d[last]["max"])} at D = {dims(last)}), the theory's accuracy on that maximum (within {f3(max_error)}), and the run cost: about 100 million comparisons per setting, all 15 settings in {whole(scan_seconds)} seconds on a laptop CPU.
+**Numbers worth quoting:** the per-fact step ({f3(MU[1])}), the noise floor (0.044 at D = 512, 0.010 at D = 10,000), the highest chance score at a million candidates ({f3(by_d[first]["max"])} at D = {dims(first)}, {f3(by_d[last]["max"])} at D = {dims(last)}), the theory's accuracy on that maximum (within {f3(max_error)}), and the run cost: about 100 million comparisons per setting, all 15 settings in {whole(scan_seconds)} seconds on a laptop CPU.
 
 **Figures:** Figure 1 explains the score ladder and the role of D. Figure 2 carries the scale story. For a single figure, use Figure 2.
 
@@ -420,7 +446,7 @@ All in `results/scale/`:
 
 | File | Contents |
 |---|---|
-| `per_query.parquet` | One row per (D, seed, N, query, k): exact integer dot sums, sums of squares and maxima, plus mean, standard deviation and maximum cosine, and zero-overlap exceedance counts |
+| `per_query.parquet` | One row per (D, seed, N, query, k): float64 sums of cosines and their squares and the maximum cosine, plus mean, standard deviation and maximum cosine, and zero-overlap exceedance counts |
 | `cell_summary.csv` | Pooled per (D, seed, N, k), with the theoretical mean, spread, maximum reference and expected exceedances |
 | `seed_summary.csv` | Seed averages and ranges per (D, N, k) |
 | `table_n1m.csv` | Table 1 at full precision |

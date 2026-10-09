@@ -34,19 +34,19 @@
       200,
       1000
     ],
-    "bundling": "coordinate-wise majority sign of all five bound facts",
-    "score": "exact cosine of bipolar vectors, integer dot / D",
+    "bundling": "raw coordinate-wise sum of all five bound facts (no sign)",
+    "score": "cosine: integer dot / product of the two record lengths",
     "predicted_means": {
       "0": 0.0,
-      "1": 0.140625,
-      "2": 0.28125,
-      "3": 0.4375,
-      "4": 0.625,
+      "1": 0.2,
+      "2": 0.4,
+      "3": 0.6,
+      "4": 0.8,
       "5": 1.0
     },
     "exceedance_scores": {
-      "half_mu1": 0.0703125,
-      "mu1": 0.140625
+      "half_mu1": 0.1,
+      "mu1": 0.2
     },
     "validation": {
       "pairs_per_k": 20000,
@@ -88,26 +88,26 @@
     "torch_threads": 4
   },
   "timings": {
-    "records_s": 0.11986158299987437,
-    "encoder_validation_s": 3.707419584003219,
+    "records_s": 0.12752991600427777,
+    "encoder_validation_s": 137.74980791599955,
     "scan_s": {
-      "d512_s11": 1.62,
-      "d512_s23": 1.61,
-      "d512_s37": 1.64,
-      "d2048_s11": 2.59,
-      "d2048_s23": 2.59,
-      "d2048_s37": 2.59,
-      "d4096_s11": 4.12,
-      "d4096_s23": 4.09,
-      "d4096_s37": 4.26,
-      "d8192_s11": 7.15,
-      "d8192_s23": 7.22,
-      "d8192_s37": 7.21,
-      "d10000_s11": 8.6,
-      "d10000_s23": 8.57,
-      "d10000_s37": 8.61
+      "d512_s11": 2.36,
+      "d512_s23": 1.92,
+      "d512_s37": 1.77,
+      "d2048_s11": 3.13,
+      "d2048_s23": 3.13,
+      "d2048_s37": 3.28,
+      "d4096_s11": 5.21,
+      "d4096_s23": 5.17,
+      "d4096_s37": 5.2,
+      "d8192_s11": 9.07,
+      "d8192_s23": 9.05,
+      "d8192_s37": 9.02,
+      "d10000_s11": 10.87,
+      "d10000_s23": 10.8,
+      "d10000_s37": 11.1
     },
-    "figures_s": 0.34999070800404297,
-    "total_s": 76.73073250000016
+    "figures_s": 0.5464751249965047,
+    "total_s": 229.59226395799487
   }
 }

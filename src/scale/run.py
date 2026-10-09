@@ -77,8 +77,8 @@ def validate_encoder() -> pl.DataFrame:
             offset = 1 + (torch.rand(shape, generator=generator) * (cardinalities - 1)).long()
             candidate = torch.where(shared, query, (query + offset) % cardinalities)
             assert ((query == candidate).sum(1) == k).all()
-            scores = (encoder.encode(query) * encoder.encode(candidate)).sum(1).double()
-            scores /= dimension
+            q, c = encoder.encode(query), encoder.encode(candidate)
+            scores = study.cosines(q, c).diagonal()
             rows.append(
                 {
                     "dimension": dimension,
@@ -87,8 +87,8 @@ def validate_encoder() -> pl.DataFrame:
                     "pairs": VALIDATION_PAIRS,
                     "predicted_mean": MU[k],
                     "measured_mean": float(scores.mean()),
-                    "standard_error": study.spread(k, dimension) / VALIDATION_PAIRS**0.5,
-                    "predicted_std": study.spread(k, dimension),
+                    # Theory predicts the spread for zero overlap only; shared facts narrow it.
+                    "predicted_std": study.spread(dimension) if k == 0 else None,
                     "measured_std": float(scores.std(correction=0)),
                 }
             )
@@ -104,16 +104,14 @@ def add_theory(cells: pl.DataFrame) -> pl.DataFrame:
     extra = []
     for row in cells.select("dimension", "k", "count").iter_rows(named=True):
         d, k, m = row["dimension"], row["k"], row["count"]
+        zero = k == 0
         entry = {
             "predicted_mean": MU[k],
-            "predicted_std": study.spread(k, d),
-            # Computed for every group; the study reads it for k = 0.
-            "max_reference": study.maximum_reference(m, d, k),
+            "predicted_std": study.spread(d) if zero else None,
+            "max_reference": study.maximum_reference(m, d) if zero else None,
         }
         for name, s in references.items():
-            entry[f"expected_zero_at_or_above_{name}"] = (
-                m * study.tail_probability(0, s, d) if k == 0 else None
-            )
+            entry[f"expected_zero_at_or_above_{name}"] = m * study.tail_probability(s, d) if zero else None
         extra.append(entry)
     return pl.concat([cells, pl.DataFrame(extra)], how="horizontal_extend")
 
@@ -190,15 +188,16 @@ def figure_shared_properties(summary: pl.DataFrame):
         rows = data.filter(pl.col("dimension") == d).sort("k")
         for row in rows.iter_rows(named=True):
             k, color = row["k"], K_COLORS[row["k"]]
-            # Theory: the predicted mean as a tick, +/- one predicted standard deviation as a band.
-            ax.fill_between(
-                [k - 0.32, k - 0.08],
-                row["predicted_mean"] - row["predicted_std"],
-                row["predicted_mean"] + row["predicted_std"],
-                color=color,
-                alpha=0.18,
-                linewidth=0,
-            )
+            # Theory: the predicted mean as a tick; +/- one predicted std as a band (k = 0 only).
+            if row["predicted_std"] is not None:
+                ax.fill_between(
+                    [k - 0.32, k - 0.08],
+                    row["predicted_mean"] - row["predicted_std"],
+                    row["predicted_mean"] + row["predicted_std"],
+                    color=color,
+                    alpha=0.18,
+                    linewidth=0,
+                )
             ax.plot([k - 0.32, k - 0.08], [row["predicted_mean"]] * 2, color=color, lw=2)
             # Measured: seed-averaged mean, +/- the seed-averaged standard deviation.
             ax.errorbar(
@@ -223,7 +222,7 @@ def figure_shared_properties(summary: pl.DataFrame):
         ax.set_xlabel("shared properties, k")
     axes[0].set_ylabel("cosine similarity")
     handles = [
-        Patch(facecolor=MUTED, alpha=0.25, label="predicted mean ± 1 predicted std (left)"),
+        Patch(facecolor=MUTED, alpha=0.25, label="predicted mean (left; band ± 1/√D for k = 0)"),
         Line2D(
             [], [], color=MUTED, marker="o", linestyle="none", label="measured mean ± 1 std (right)"
         ),
@@ -238,7 +237,7 @@ def figure_shared_properties(summary: pl.DataFrame):
         bbox_to_anchor=(0.5, -0.08),
     )
     fig.suptitle(
-        "Cosine rises by about 0.14 per shared property; the spread narrows as D grows",
+        f"Cosine rises by {MU[1]:.1f} per shared property; the spread narrows as D grows",
         x=0.06,
         ha="left",
         fontsize=12.5,
@@ -409,8 +408,8 @@ def main():
             "batch": study.BATCH,
             "facts": study.PROPERTIES,
             "cardinalities": study.CARDINALITIES,
-            "bundling": "coordinate-wise majority sign of all five bound facts",
-            "score": "exact cosine of bipolar vectors, integer dot / D",
+            "bundling": "raw coordinate-wise sum of all five bound facts (no sign)",
+            "score": "cosine: integer dot / product of the two record lengths",
             "predicted_means": MU,
             "exceedance_scores": study.exceedance_scores(),
             "validation": {

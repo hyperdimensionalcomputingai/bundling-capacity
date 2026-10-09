@@ -12,13 +12,11 @@ import study
 from study import Encoder
 
 
-def test_majority_bundle_means_by_exact_enumeration():
-    expected = [Fraction(0), Fraction(9, 64), Fraction(18, 64), Fraction(28, 64)]
-    expected += [Fraction(40, 64), Fraction(1)]
-    assert [study.expected_cosine(k) for k in study.GROUPS] == expected
+def test_raw_sum_means_are_k_over_five():
+    assert [study.expected_cosine(k) for k in study.GROUPS] == [Fraction(k, 5) for k in range(6)]
 
 
-def test_encoder_binds_each_value_to_its_role_and_majority_bundles_five_facts():
+def test_encoder_binds_each_value_to_its_role_and_sums_five_facts():
     encoder = Encoder.make(512, 11)
     codes = torch.tensor([[3, 1, 42, 199, 7], [0, 9, 0, 0, 999]])
     for record, row in zip(encoder.encode(codes), codes):
@@ -28,10 +26,11 @@ def test_encoder_binds_each_value_to_its_role_and_majority_bundles_five_facts():
                 for i in range(study.FACTS)
             ]
         )
-        # One majority over all five facts; with five bipolar inputs it never ties.
-        reference = torch.sign(torchhd.multiset(facts).as_subclass(torch.Tensor))
-        assert torch.equal(record, reference)
-        assert set(record.unique().tolist()) == {-1.0, 1.0}
+        # The raw sum of all five facts, with no sign applied.
+        assert torch.equal(record, torchhd.multiset(facts).as_subclass(torch.Tensor))
+        assert set(record.unique().tolist()) <= {-5.0, -3.0, -1.0, 1.0, 3.0, 5.0}
+        # Unbinding the employer role recovers the employer value as the best match.
+        assert int((encoder.values[4] @ (record * encoder.roles[4])).argmax()) == int(row[4])
     # Rebuilding the encoder from the same (D, seed) gives the same vectors.
     assert torch.equal(encoder.encode(codes), Encoder.make(512, 11).encode(codes))
     assert not torch.equal(encoder.encode(codes), Encoder.make(512, 23).encode(codes))
@@ -64,7 +63,7 @@ def test_scan_keeps_duplicates_and_excludes_only_the_query_itself():
     }
     # Each query sees the other identical record at k = 5, never itself.
     assert counts == {(0, 5): 1, (0, 0): 1, (0, 1): 1, (1, 5): 1, (1, 0): 1, (1, 1): 1}
-    assert result.filter(pl.col("k") == 5)["max"].to_list()[:2] == [1.0, 1.0]
+    assert result.filter(pl.col("k") == 5)["max"].to_list()[:2] == pytest.approx([1.0, 1.0])
 
 
 def test_small_end_to_end_run_matches_brute_force():
@@ -78,8 +77,7 @@ def test_small_end_to_end_run_matches_brute_force():
     prefixes, query_count = (150, 300, 600), 7
     result = study.scan(encoder, codes, prefixes=prefixes, query_count=query_count, batch=75)
 
-    vectors = encoder.encode(codes)
-    cosine = (vectors[:query_count] @ vectors.T) / 512
+    cosine = study.cosines(encoder.encode(codes[:query_count]), encoder.encode(codes))
     k = study.shared_counts(codes[:query_count], codes)
     for n in prefixes:
         rows = result.filter(pl.col("n") == n)
@@ -91,8 +89,8 @@ def test_small_end_to_end_run_matches_brute_force():
                 if keep.any():
                     scores = cosine[q, :n][keep].double()
                     assert row["mean"] == pytest.approx(float(scores.mean()), abs=1e-12)
-                    assert row["std"] == pytest.approx(float(scores.std(correction=0)), abs=1e-9)
-                    assert row["max"] == float(scores.max())
+                    assert row["std"] == pytest.approx(float(scores.std(correction=0)), abs=1e-7)
+                    assert row["max"] == pytest.approx(float(scores.max()))
                 if g == 0:
                     for name, s in study.exceedance_scores().items():
                         assert row[f"zero_at_or_above_{name}"] == int((scores >= s).sum())
@@ -106,8 +104,8 @@ def test_small_end_to_end_run_matches_brute_force():
             if keep.any():
                 scores = cosine[:, :n][keep].double()
                 assert row["mean"] == pytest.approx(float(scores.mean()), abs=1e-12)
-                assert row["std"] == pytest.approx(float(scores.std(correction=0)), abs=1e-9)
-                assert row["max"] == float(scores.max())
+                assert row["std"] == pytest.approx(float(scores.std(correction=0)), abs=1e-7)
+                assert row["max"] == pytest.approx(float(scores.max()))
 
 
 def test_controlled_pairs_agree_with_theory():
@@ -118,13 +116,15 @@ def test_controlled_pairs_agree_with_theory():
             facts = torchhd.random(pairs * (2 * study.FACTS - k), dimension, "MAP").reshape(
                 pairs, 2 * study.FACTS - k, dimension
             )
-            query = torch.sign(facts[:, : study.FACTS].sum(1))
-            candidate = torch.sign(torch.cat([facts[:, :k], facts[:, study.FACTS :]], 1).sum(1))
-            scores = (query * candidate).sum(1) / dimension
-            sigma = study.spread(k, dimension)
-            # Five standard errors of the mean; spread within 10% of the prediction.
+            query = facts[:, : study.FACTS].sum(1)
+            candidate = torch.cat([facts[:, :k], facts[:, study.FACTS :]], 1).sum(1)
+            scores = study.cosines(query, candidate).diagonal()
+            sigma = study.spread(dimension)  # zero-overlap spread; shared facts only narrow it
+            # Five standard errors of the mean; the zero-overlap spread within 10% of 1/sqrt(D).
             assert abs(float(scores.mean()) - study.MU[k]) <= 5 * sigma / math.sqrt(pairs) + 1e-12
-            assert float(scores.std()) == pytest.approx(sigma, rel=0.1, abs=1e-12)
+            assert float(scores.std()) <= sigma * 1.1
+            if k == 0:
+                assert float(scores.std()) == pytest.approx(sigma, rel=0.1)
 
 
 def test_theory_respects_the_discrete_cosine_grid():
@@ -133,8 +133,7 @@ def test_theory_respects_the_discrete_cosine_grid():
             ref = study.maximum_reference(comparisons, dimension)
             agreeing = dimension * (1 + ref) / 2
             assert agreeing == pytest.approx(round(agreeing), abs=1e-6)  # attainable
-            assert study.tail_probability(0, ref, dimension) <= 1 / comparisons
+            assert study.tail_probability(ref, dimension) <= 1 / comparisons
             below = ref - 2 / dimension  # the next attainable cosine down
-            assert study.tail_probability(0, below, dimension) > 1 / comparisons
-    assert study.spread(0, 10_000) == pytest.approx(0.01)
-    assert study.spread(2, 512) == pytest.approx(math.sqrt((1 - 0.28125**2) / 512))
+            assert study.tail_probability(below, dimension) > 1 / comparisons
+    assert study.spread(10_000) == pytest.approx(0.01)
