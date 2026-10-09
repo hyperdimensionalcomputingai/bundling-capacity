@@ -1,12 +1,13 @@
-"""Run the scale study end to end: records, encoder check, scan, summaries, figures, report.
+"""Run the collision study end to end: records, all-pairs trials, summaries, figures, report.
 
 From the repository root:
 
     uv run --project src/scale --locked python src/scale/run.py
 
-Each (D, vector seed) is one pass through the million-record sequence, with summaries
-taken as the scan reaches each prefix N. Everything written to results/scale and
-src/scale/REPORT.md is regenerated from scratch.
+Each trial draws fresh hypervectors for one dimension and compares every record with every
+other record once. The nested populations (the first 4,000, 13,000 and 40,000 records) are
+summarized from the same pass. Everything in results/scale and src/scale/REPORT.md is
+regenerated from scratch.
 """
 
 from __future__ import annotations
@@ -14,29 +15,37 @@ from __future__ import annotations
 import importlib.metadata
 import importlib.util
 import json
+import math
 import platform
 import time
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import polars as pl
-import torch
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch
-from matplotlib.ticker import FixedLocator, NullLocator
+from plotnine import (
+    aes,
+    element_blank,
+    element_line,
+    element_rect,
+    element_text,
+    facet_wrap,
+    geom_line,
+    geom_point,
+    geom_step,
+    geom_text,
+    geom_vline,
+    ggplot,
+    labs,
+    scale_color_manual,
+    scale_x_continuous,
+    scale_x_log10,
+    scale_y_log10,
+    theme,
+    theme_minimal,
+)
 
 import study
 from report import write_report
-from study import MU, Encoder
 
-KEYS = ["dimension", "seed", "n", "k"]
-LARGEST = max(study.PREFIXES)
-# The encoder check: record pairs per (D, k), each with exactly k shared properties.
-VALIDATION_PAIRS = 20_000
-VALIDATION_SEED = 11
-VALIDATION_DATA_SEED = 202  # separate from the population's data seed 101
+# ----------------------------------------------------------------------------- records
 
 
 def regenerate_records() -> dict:
@@ -54,377 +63,289 @@ def regenerate_records() -> dict:
     return json.loads(generate.SETTINGS_PATH.read_text())
 
 
-# ----------------------------------------------------------------------------- encoder check
-
-
-def validate_encoder() -> pl.DataFrame:
-    """Controlled pairs with exactly k shared properties, encoded with the study's vectors.
-
-    Each pair draws a random query record, copies k randomly chosen properties into the
-    candidate and gives the other properties a different value. Value vectors are reused
-    across pairs, as in the population, so this checks the encoder in realistic conditions.
-    """
-    rows = []
-    cardinalities = torch.tensor(study.CARDINALITIES)
-    for dimension in study.DIMENSIONS:
-        encoder = Encoder.make(dimension, VALIDATION_SEED)
-        for k in study.GROUPS:
-            generator = torch.Generator().manual_seed(VALIDATION_DATA_SEED * 10 + k)
-            shape = (VALIDATION_PAIRS, study.FACTS)
-            query = (torch.rand(shape, generator=generator) * cardinalities).long()
-            order = torch.rand(shape, generator=generator).argsort(1)
-            shared = torch.zeros(shape, dtype=torch.bool).scatter(1, order[:, :k], True)
-            offset = 1 + (torch.rand(shape, generator=generator) * (cardinalities - 1)).long()
-            candidate = torch.where(shared, query, (query + offset) % cardinalities)
-            assert ((query == candidate).sum(1) == k).all()
-            q, c = encoder.encode(query), encoder.encode(candidate)
-            scores = study.cosines(q, c).diagonal()
-            rows.append(
-                {
-                    "dimension": dimension,
-                    "seed": VALIDATION_SEED,
-                    "k": k,
-                    "pairs": VALIDATION_PAIRS,
-                    "predicted_mean": MU[k],
-                    "measured_mean": float(scores.mean()),
-                    # Theory predicts the spread for zero overlap only; shared facts narrow it.
-                    "predicted_std": study.spread(dimension) if k == 0 else None,
-                    "measured_std": float(scores.std(correction=0)),
-                }
-            )
-    return pl.DataFrame(rows)
-
-
 # ----------------------------------------------------------------------------- summaries
 
 
-def add_theory(cells: pl.DataFrame) -> pl.DataFrame:
-    """Predicted mean, spread, maximum reference and expected exceedances per row."""
-    references = study.exceedance_scores()
-    extra = []
-    for row in cells.select("dimension", "k", "count").iter_rows(named=True):
-        d, k, m = row["dimension"], row["k"], row["count"]
-        zero = k == 0
-        entry = {
-            "predicted_mean": MU[k],
-            "predicted_std": study.spread(d) if zero else None,
-            "max_reference": study.maximum_reference(m, d) if zero else None,
+def summarize(trials: pl.DataFrame) -> pl.DataFrame:
+    """Per (D, N): measured counts and chances over trials, beside the binomial predictions."""
+    rows = []
+    for (d, n), group in trials.group_by(["dimension", "n"], maintain_order=True):
+        first = group.row(0, named=True)
+        row = {
+            "dimension": d,
+            "n": n,
+            "trials": group.height,
+            "pairs": first["pairs"],
+            "unrelated_pairs": first["unrelated_pairs"],
+            "storage_bytes_per_record": d,  # int8 raw sums
+            "highest_unrelated_mean": group["highest_unrelated"].mean(),
+            "highest_unrelated_max": group["highest_unrelated"].max(),
         }
-        for name, s in references.items():
-            entry[f"expected_zero_at_or_above_{name}"] = m * study.tail_probability(s, d) if zero else None
-        extra.append(entry)
-    return pl.concat([cells, pl.DataFrame(extra)], how="horizontal_extend")
-
-
-def seed_summary(cells: pl.DataFrame) -> pl.DataFrame:
-    """Average over vector seeds, with the seed range, per (D, N, k)."""
-    measured = ["mean", "std", "max", "zero_at_or_above_half_mu1", "zero_at_or_above_mu1"]
-    theory = [c for c in cells.columns if c.startswith(("predicted_", "expected_"))]
-    return (
-        cells.group_by(["dimension", "n", "k"])
-        .agg(
-            pl.col("count").first(),
-            pl.col("count").n_unique().alias("count_variants"),
-            *[pl.col(c).first() for c in [*theory, "max_reference"]],
-            *[pl.col(c).mean().alias(f"{c}_seed_mean") for c in measured],
-            *[pl.col(c).min().alias(f"{c}_seed_min") for c in measured],
-            *[pl.col(c).max().alias(f"{c}_seed_max") for c in measured],
-        )
-        .sort(["dimension", "n", "k"])
-    )
+        for q in study.MATCHES:
+            row[f"threshold_{q}"] = first[f"threshold_{q}"]
+            row[f"false_pairs_{q}_mean"] = group[f"false_pairs_{q}"].mean()
+            row[f"dataset_with_false_{q}"] = (group[f"false_pairs_{q}"] > 0).mean()
+            row[f"search_with_false_{q}"] = (group[f"searches_with_false_{q}"] / n).mean()
+            row[f"miss_rate_{q}"] = group[f"misses_{q}"].sum() / group[f"true_pairs_{q}"].sum()
+        row.update(study.predictions(first))
+        rows.append(row)
+    return pl.DataFrame(rows).sort(["dimension", "n"])
 
 
 # ----------------------------------------------------------------------------- figures
 
-# Categorical slots for k = 0, 1, 2 (validated light-mode palette; aqua is under 3:1
-# contrast against the surface, so every series also carries a direct label and legend).
-K_COLORS = {0: "#2a78d6", 1: "#eb6834", 2: "#1baf7a"}
-INK, MUTED, SURFACE, GRID = "#0b0b0b", "#52514e", "#fcfcfb", "#e4e3df"
-K_LABELS = {0: "zero shared", 1: "one shared", 2: "two shared"}
+INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
+GROUP_COLORS = {"0": "#2a78d6", "1": "#eb6834", "2": "#1baf7a"}
+GROUP_LABELS = {"0": "share nothing", "1": "share 1 property", "2": "share 2 properties"}
+JOB_COLORS = {"search": "#4a3aa7", "dataset": "#e34948"}
+JOB_LABELS = {"search": "searching for one person", "dataset": "checking the whole dataset"}
 
 
-def style():
-    plt.rcParams.update(
-        {
-            "font.family": "DejaVu Sans",
-            "font.size": 10.5,
-            "text.color": INK,
-            "axes.labelcolor": MUTED,
-            "axes.titlecolor": INK,
-            "axes.facecolor": SURFACE,
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-            "axes.spines.left": False,
-            "axes.spines.bottom": False,
-            "figure.facecolor": "white",
-            "grid.color": GRID,
-            "grid.linewidth": 1,
-            "xtick.color": MUTED,
-            "ytick.color": MUTED,
-            "lines.linewidth": 2,
-            "svg.fonttype": "none",
-            "savefig.bbox": "tight",
-        }
+def dimension_label(d: int) -> str:
+    return f"{d:,} dimensions ({d // 1024} KB per hypervector)"
+
+
+def house_theme():
+    return theme_minimal(base_size=11) + theme(
+        figure_size=(12.5, 4.4),
+        plot_background=element_rect(fill="white", color="white"),
+        panel_background=element_rect(fill=SURFACE, color=SURFACE),
+        panel_grid_major=element_line(color=GRID, size=0.5),
+        panel_grid_minor=element_blank(),
+        strip_text=element_text(color=INK, size=11, ha="left"),
+        axis_title=element_text(color=MUTED, size=10),
+        axis_text=element_text(color=MUTED, size=9),
+        plot_title=element_text(color=INK, size=13, ha="left"),
+        plot_subtitle=element_text(color=MUTED, size=10, ha="left"),
+        legend_position="bottom",
+        legend_title=element_blank(),
+        legend_text=element_text(color=INK, size=10),
+        panel_spacing_x=0.03,
     )
 
 
-def save(fig, name: str):
+def figure_scores(histograms: pl.DataFrame, summary: pl.DataFrame):
+    """Figure 1: how scores spread for each overlap group, with both thresholds marked."""
+    largest = max(study.SIZES)
+    data = histograms.filter(pl.col("count") > 0).with_columns(
+        pl.col("k").cast(pl.Utf8),
+        pl.col("dimension").map_elements(dimension_label, return_dtype=pl.Utf8).alias("panel"),
+    )
+    lines = (
+        summary.filter(pl.col("n") == largest)
+        .select("dimension", "threshold_1", "threshold_2")
+        .unpivot(index="dimension", variable_name="which", value_name="t")
+        .with_columns(
+            pl.col("dimension").map_elements(dimension_label, return_dtype=pl.Utf8).alias("panel"),
+            pl.when(pl.col("which") == "threshold_1")
+            .then(pl.lit("1-fact\nthreshold"))
+            .otherwise(pl.lit("2-fact\nthreshold"))
+            .alias("label"),
+        )
+    )
+    order = [dimension_label(d) for d in study.DIMENSIONS]
+    data = data.with_columns(pl.col("panel").cast(pl.Enum(order)))
+    lines = lines.with_columns(pl.col("panel").cast(pl.Enum(order)))
+    plot = (
+        ggplot(data.to_pandas(), aes("score", "count", color="k"))
+        + geom_step(size=0.9)
+        + geom_vline(
+            aes(xintercept="t"), data=lines.to_pandas(), color=INK, linetype="dashed", size=0.5
+        )
+        + geom_text(
+            aes(x="t", y=3e7, label="label"),
+            data=lines.to_pandas(),
+            color=INK,
+            size=8,
+            ha="left",
+            nudge_x=0.012,
+            inherit_aes=False,
+        )
+        + facet_wrap("panel", nrow=1)
+        + scale_color_manual(values=GROUP_COLORS, labels=GROUP_LABELS)
+        + scale_y_log10(labels=lambda v: [f"{x:,.0f}" for x in v])
+        + scale_x_continuous(limits=(-0.25, 0.6), breaks=[-0.2, 0, 0.2, 0.4, 0.6])
+        + labs(
+            x="cosine similarity",
+            y="pairs (log scale)",
+            title="Unrelated pairs pile up near zero; the gap to the thresholds widens with dimension",
+            subtitle=f"Every pair among {largest:,} records, first trial at each dimension. "
+            "Thresholds keep about 99.9% of true matches.",
+        )
+        + house_theme()
+    )
+    save(plot, "figure1_scores")
+
+
+def figure_false_matches(summary: pl.DataFrame):
+    """Figure 2: chance of at least one false match, one search vs the whole dataset."""
+    order = [dimension_label(d) for d in study.DIMENSIONS]
+    rows = []
+    for r in summary.iter_rows(named=True):
+        panel = dimension_label(r["dimension"])
+        rows += [
+            {
+                "panel": panel,
+                "n": r["n"],
+                "job": "search",
+                "kind": "predicted",
+                "chance": r["search_chance_1"],
+            },
+            {
+                "panel": panel,
+                "n": r["n"],
+                "job": "dataset",
+                "kind": "predicted",
+                "chance": r["dataset_chance_1"],
+            },
+            {
+                "panel": panel,
+                "n": r["n"],
+                "job": "search",
+                "kind": "measured",
+                "chance": r["search_with_false_1"],
+                "trials": r["trials"],
+            },
+            {
+                "panel": panel,
+                "n": r["n"],
+                "job": "dataset",
+                "kind": "measured",
+                "chance": r["dataset_with_false_1"],
+                "trials": r["trials"],
+            },
+        ]
+    data = pl.DataFrame(rows).with_columns(pl.col("panel").cast(pl.Enum(order)))
+    predicted = data.filter(pl.col("kind") == "predicted").to_pandas()
+    measured = data.filter((pl.col("kind") == "measured") & (pl.col("chance") > 0)).to_pandas()
+    largest = max(study.SIZES)
+    ends = predicted[predicted["n"] == largest].copy()
+    ends["label"] = ends["chance"].map(short_chance)
+    none_seen = (
+        summary.filter((pl.col("n") == largest) & (pl.col("dataset_with_false_1") == 0))
+        .with_columns(
+            pl.col("dimension")
+            .map_elements(dimension_label, return_dtype=pl.Utf8)
+            .cast(pl.Enum(order))
+            .alias("panel"),
+            pl.format("none seen in\n{} trials", pl.col("trials")).alias("label"),
+            (pl.col("dataset_chance_1") / 8).alias("y"),
+        )
+        .to_pandas()
+    )
+    plot = (
+        ggplot(predicted, aes("n", "chance", color="job"))
+        + geom_line(size=1)
+        + geom_point(data=measured, size=3.2, fill="white", stroke=1.2, shape="o")
+        + geom_text(
+            aes(label="label"), data=ends, size=9, ha="left", nudge_x=0.06, show_legend=False
+        )
+        + geom_text(
+            aes(x=largest * 1.12, y="y", label="label"),
+            data=none_seen,
+            color=MUTED,
+            size=8,
+            ha="left",
+            va="top",
+            inherit_aes=False,
+        )
+        + facet_wrap("panel", nrow=1, scales="free_y")
+        + scale_color_manual(values=JOB_COLORS, labels=JOB_LABELS)
+        + scale_x_log10(
+            breaks=list(study.SIZES),
+            labels=lambda v: [f"{x / 1000:,.0f}K" for x in v],
+            limits=(min(study.SIZES) / 1.15, largest * 2.4),
+        )
+        + scale_y_log10(labels=lambda v: [short_chance(x) for x in v])
+        + labs(
+            x="records in the dataset",
+            y="chance of at least one false match (log scale)",
+            title="One search stays clean; the whole dataset fills up first",
+            subtitle="Lines: binomial prediction, labelled at 40K records. Circles: measured over "
+            "trials. A match shares at least one of five properties. Each panel has its own scale.",
+        )
+        + house_theme()
+    )
+    save(plot, "figure2_false_matches")
+
+
+def short_chance(x: float) -> str:
+    """A probability as a percentage, or as a power of ten once it is tiny."""
+    if x >= 0.01:
+        return f"{x:.0%}"
+    exponent = math.floor(math.log10(x))
+    mantissa = round(x / 10**exponent)
+    if mantissa == 10:
+        mantissa, exponent = 1, exponent + 1
+    power = f"10^{{{exponent}}}"
+    return f"${power}$" if mantissa == 1 else rf"${mantissa}\times{power}$"
+
+
+def save(plot, name: str):
     for ext in ("png", "svg"):
-        fig.savefig(study.OUT / f"{name}.{ext}", dpi=190, facecolor="white")
-    svg = study.OUT / f"{name}.svg"
-    svg.write_text("\n".join(line.rstrip() for line in svg.read_text().splitlines()) + "\n")
-    plt.close(fig)
-
-
-def dimension_title(d: int) -> str:
-    return f"D = {d:,}"
-
-
-def figure_shared_properties(summary: pl.DataFrame):
-    """Figure 1: mean cosine by k at N = 1,000,000, one panel per D."""
-    data = summary.filter((pl.col("n") == LARGEST) & (pl.col("k") <= 2))
-    fig, axes = plt.subplots(1, len(study.DIMENSIONS), figsize=(13, 4.1), sharey=True)
-    for ax, d in zip(axes, study.DIMENSIONS):
-        rows = data.filter(pl.col("dimension") == d).sort("k")
-        for row in rows.iter_rows(named=True):
-            k, color = row["k"], K_COLORS[row["k"]]
-            # Theory: the predicted mean as a tick; +/- one predicted std as a band (k = 0 only).
-            if row["predicted_std"] is not None:
-                ax.fill_between(
-                    [k - 0.32, k - 0.08],
-                    row["predicted_mean"] - row["predicted_std"],
-                    row["predicted_mean"] + row["predicted_std"],
-                    color=color,
-                    alpha=0.18,
-                    linewidth=0,
-                )
-            ax.plot([k - 0.32, k - 0.08], [row["predicted_mean"]] * 2, color=color, lw=2)
-            # Measured: seed-averaged mean, +/- the seed-averaged standard deviation.
-            ax.errorbar(
-                k + 0.2,
-                row["mean_seed_mean"],
-                yerr=row["std_seed_mean"],
-                fmt="o",
-                color=color,
-                markersize=7,
-                capsize=4,
-                elinewidth=2,
-                markeredgecolor="white",
-                markeredgewidth=1.2,
-            )
-        ax.set_title(dimension_title(d), fontsize=11, loc="left")
-        ax.set_xticks([0, 1, 2])
-        ax.set_xticklabels(["0", "1", "2"])
-        ax.set_xlim(-0.6, 2.6)
-        ax.grid(axis="y")
-        ax.set_axisbelow(True)
-        ax.tick_params(length=0)
-        ax.set_xlabel("shared properties, k")
-    axes[0].set_ylabel("cosine similarity")
-    handles = [
-        Patch(facecolor=MUTED, alpha=0.25, label="predicted mean (left; band ± 1/√D for k = 0)"),
-        Line2D(
-            [], [], color=MUTED, marker="o", linestyle="none", label="measured mean ± 1 std (right)"
-        ),
-        *[Patch(facecolor=K_COLORS[k], label=f"k = {k}, {K_LABELS[k]}") for k in (0, 1, 2)],
-    ]
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        ncol=5,
-        frameon=False,
-        fontsize=9.5,
-        bbox_to_anchor=(0.5, -0.08),
-    )
-    fig.suptitle(
-        f"Cosine rises by {MU[1]:.1f} per shared property; the spread narrows as D grows",
-        x=0.06,
-        ha="left",
-        fontsize=12.5,
-        y=1.02,
-    )
-    fig.text(
-        0.06,
-        0.945,
-        "N = 1,000,000 candidates, 100 queries, mean of vector seeds 11, 23 and 37. "
-        "Bars and bands show the spread of individual scores, not confidence intervals.",
-        ha="left",
-        fontsize=9.5,
-        color=MUTED,
-    )
-    save(fig, "figure1_shared_properties")
-
-
-def figure_zero_overlap_maximum(summary: pl.DataFrame):
-    """Figure 2: highest zero-overlap cosine against N, with the k = 1 and 2 score bands."""
-    fig, axes = plt.subplots(1, len(study.DIMENSIONS), figsize=(13, 4.3), sharey=True)
-    ns = list(study.PREFIXES)
-    for ax, d in zip(axes, study.DIMENSIONS):
-        rows = summary.filter(pl.col("dimension") == d)
-        for k in (1, 2):
-            g = rows.filter(pl.col("k") == k).sort("n")
-            mean, std = g["mean_seed_mean"], g["std_seed_mean"]
-            ax.fill_between(ns, mean - std, mean + std, color=K_COLORS[k], alpha=0.16, lw=0)
-            ax.plot(ns, mean, color=K_COLORS[k], lw=1.6)
-        zero = rows.filter(pl.col("k") == 0).sort("n")
-        ax.plot(ns, zero["max_reference"], color=INK, lw=1.4, linestyle=(0, (4, 3)), zorder=4)
-        ax.fill_between(
-            ns, zero["max_seed_min"], zero["max_seed_max"], color=K_COLORS[0], alpha=0.3, lw=0
-        )
-        ax.plot(
-            ns,
-            zero["max_seed_mean"],
-            color=K_COLORS[0],
-            marker="o",
-            markersize=6,
-            markeredgecolor="white",
-            markeredgewidth=1.2,
-        )
-        ax.set_xscale("log")
-        ax.xaxis.set_major_locator(FixedLocator(ns))
-        ax.xaxis.set_minor_locator(NullLocator())
-        ax.set_xticklabels(["10k", "100k", "1M"])
-        ax.set_xlim(ns[0] / 1.6, ns[-1] * 1.6)
-        ax.set_title(dimension_title(d), fontsize=11, loc="left")
-        ax.grid(axis="y")
-        ax.set_axisbelow(True)
-        ax.tick_params(length=0)
-        ax.set_xlabel("candidates, N")
-        if d == study.DIMENSIONS[0]:
-            last = rows.filter(pl.col("n") == LARGEST)
-            for k in (1, 2):
-                y = last.filter(pl.col("k") == k)["mean_seed_mean"][0]
-                ax.annotate(
-                    f"k = {k} mean",
-                    (ns[0], y),
-                    xytext=(0, 5),
-                    textcoords="offset points",
-                    fontsize=8.5,
-                    color=INK,
-                )
-    axes[0].set_ylabel("cosine similarity")
-    handles = [
-        Line2D(
-            [],
-            [],
-            color=K_COLORS[0],
-            marker="o",
-            markeredgecolor="white",
-            label="highest zero-overlap score (seed mean; band = seed range)",
-        ),
-        Line2D([], [], color=INK, linestyle=(0, (4, 3)), label="theoretical maximum reference"),
-        Patch(facecolor=K_COLORS[1], alpha=0.35, label="one shared: mean ± 1 std"),
-        Patch(facecolor=K_COLORS[2], alpha=0.35, label="two shared: mean ± 1 std"),
-    ]
-    fig.legend(
-        handles=handles,
-        loc="lower center",
-        ncol=4,
-        frameon=False,
-        fontsize=9.5,
-        bbox_to_anchor=(0.5, -0.09),
-    )
-    fig.suptitle(
-        "The highest zero-overlap score creeps up with N and falls sharply with D",
-        x=0.06,
-        ha="left",
-        fontsize=12.5,
-        y=1.02,
-    )
-    fig.text(
-        0.06,
-        0.945,
-        "Exact cosine, 100 queries against every other record in each prefix; "
-        "vector seeds 11, 23 and 37.",
-        ha="left",
-        fontsize=9.5,
-        color=MUTED,
-    )
-    save(fig, "figure2_zero_overlap_maximum")
+        plot.save(study.OUT / f"{name}.{ext}", dpi=190, verbose=False)
 
 
 # ----------------------------------------------------------------------------- main
 
 
 def versions() -> dict:
-    names = ["torch", "torch-hd", "polars", "pyarrow", "scipy", "matplotlib"]
+    names = ["torch", "torch-hd", "polars", "pyarrow", "scipy", "plotnine"]
     return {
         "python": platform.python_version(),
         **{n: importlib.metadata.version(n) for n in names},
         "machine": f"{platform.system()} {platform.machine()}",
-        "torch_threads": torch.get_num_threads(),
     }
 
 
 def main():
     started = time.perf_counter()
-    timings = {}
     study.OUT.mkdir(parents=True, exist_ok=True)
-
-    t = time.perf_counter()
+    for stale in study.OUT.iterdir():
+        stale.unlink()
     data_settings = regenerate_records()
     codes = study.load_codes()
-    timings["records_s"] = time.perf_counter() - t
 
-    t = time.perf_counter()
-    validation = validate_encoder()
-    validation.write_csv(study.OUT / "encoder_validation.csv")
-    timings["encoder_validation_s"] = time.perf_counter() - t
-
-    per_query, scans = [], {}
+    trials, histograms, timings = [], [], {}
     for d in study.DIMENSIONS:
-        for seed in study.VECTOR_SEEDS:
-            t = time.perf_counter()
-            per_query.append(study.scan(Encoder.make(d, seed), codes))
-            scans[f"d{d}_s{seed}"] = round(time.perf_counter() - t, 2)
-            print(f"D={d:>6,} seed={seed}: {scans[f'd{d}_s{seed}']:.1f} s", flush=True)
-    per_query = pl.concat(per_query)
-    per_query.write_parquet(study.OUT / "per_query.parquet", compression="zstd")
-    timings["scan_s"] = scans
+        t = time.perf_counter()
+        for seed in range(study.TRIALS[d]):
+            result, hist = study.all_pairs(study.Encoder.make(d, seed), codes, histogram=seed == 0)
+            trials.append(result)
+            if hist is not None:
+                histograms.append(hist)
+        timings[f"d{d}_s"] = round(time.perf_counter() - t, 1)
+        print(f"D={d:>5,}: {study.TRIALS[d]} trials in {timings[f'd{d}_s']:.0f} s", flush=True)
+    trials = pl.concat(trials)
+    histograms = pl.concat(histograms)
+    trials.write_csv(study.OUT / "trials.csv")
+    histograms.write_csv(study.OUT / "score_histograms.csv")
+    summary = summarize(trials)
+    summary.write_csv(study.OUT / "summary.csv")
 
-    cells = add_theory(study.pool(per_query, KEYS))
-    cells.write_csv(study.OUT / "cell_summary.csv")
-    summary = seed_summary(cells)
-    if summary["count_variants"].max() != 1:
-        raise AssertionError("Group counts depend only on the records, never on the seed")
-    summary = summary.drop("count_variants")
-    summary.write_csv(study.OUT / "seed_summary.csv")
+    figure_scores(histograms, summary)
+    figure_false_matches(summary)
 
-    t = time.perf_counter()
-    style()
-    figure_shared_properties(summary)
-    figure_zero_overlap_maximum(summary)
-    timings["figures_s"] = time.perf_counter() - t
-
-    timings["total_s"] = time.perf_counter() - started
+    timings["total_s"] = round(time.perf_counter() - started, 1)
     manifest = {
         "settings": {
             "dimensions": study.DIMENSIONS,
-            "prefixes": study.PREFIXES,
-            "vector_seeds": study.VECTOR_SEEDS,
-            "vector_draw": "torch.Generator().manual_seed(seed * 1_000_003 + D); "
-            "torchhd.random roles, then values per property in order",
-            "query_panel": f"first {study.QUERY_COUNT} records; self excluded, duplicates kept",
-            "batch": study.BATCH,
-            "facts": study.PROPERTIES,
-            "cardinalities": study.CARDINALITIES,
-            "bundling": "raw coordinate-wise sum of all five bound facts (no sign)",
+            "sizes": study.SIZES,
+            "trials": study.TRIALS,
+            "matches": study.MATCHES,
+            "recall": study.RECALL,
+            "vector_draw": "torch.Generator().manual_seed(seed * 1_000_003 + D), seed = trial",
+            "bundling": "raw coordinate-wise sum of five bound facts (no sign), int8",
             "score": "cosine: integer dot / product of the two record lengths",
-            "predicted_means": MU,
-            "exceedance_scores": study.exceedance_scores(),
-            "validation": {
-                "pairs_per_k": VALIDATION_PAIRS,
-                "vector_seed": VALIDATION_SEED,
-                "data_seed": VALIDATION_DATA_SEED,
-            },
+            "threshold": "q/5 - z_0.999 / sqrt(D)",
+            "tail": "binomial: H ~ Binomial(D, 1/2), score (2H - D) / D",
         },
         "records": data_settings,
         "versions": versions(),
         "timings": timings,
     }
     (study.OUT / "manifest.json").write_text(json.dumps(manifest, indent=2, default=str) + "\n")
-
-    write_report(summary, validation, data_settings, timings)
+    write_report(summary, data_settings, timings)
     print(f"Done in {timings['total_s']:.0f} s")
 
 
