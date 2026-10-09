@@ -1,0 +1,22 @@
+{
+  "record_count": 1000000,
+  "data_seed": 101,
+  "properties": {
+    "region": 20,
+    "education": 10,
+    "occupation": 100,
+    "interest_cluster": 200,
+    "employer": 1000
+  },
+  "sampling": "uniform and independent per property, torch.randint, one generator",
+  "torch_version": "2.13.0",
+  "pair_share_by_k": [
+    0.8413755322499998,
+    0.15133807125,
+    0.0071975925000000015,
+    8.847250000000002e-05,
+    3.3125000000000006e-07,
+    2.5000000000000007e-10
+  ],
+  "duplicate_attribute_records": 132
+}

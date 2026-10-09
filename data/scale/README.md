@@ -1,32 +1,24 @@
-# Controlled factorial PERSON fixture
+# Synthetic categorical records
 
-These files hold **920,000 synthetic directory-style records**, one for every combination of four fields:
+`records.parquet` holds **1,000,000 synthetic records**, each with five categorical properties drawn uniformly and independently:
 
-| Field | Values | Meaning |
+| Column | Values | Type |
 | --- | --- | --- |
-| `age_band` | 10 ordered bands, 18–24 to 65+ | Ordinal |
-| `job_category` | 8 broad categories | Nominal |
-| `home_region` | 5 regions | Nominal |
-| `interests` | exactly 3 distinct values from 25 | Unordered set |
+| `record_id` | 0 to 999,999, in sequence order | int32 |
+| `region` | 20 | int16 code |
+| `education` | 10 | int16 code |
+| `occupation` | 100 | int16 code |
+| `interest_cluster` | 200 | int16 code |
+| `employer` | 1,000 | int16 code |
 
-10 × 8 × 5 × C(25, 3) = 920,000. Together these rows **exhaust the declared state space**. Every signature appears exactly once. They are not a sample of people, and there are no names, IDs or free text to encode. A complete record contributes six bound facts: age, job, region, and three interests. `domains.json` maps integer codes to readable labels.
+The property names make the example readable. Codes carry no meaning, and the study gives every value an independent random vector, so different values have no semantic similarity. This is a controlled synthetic population, not a model of real demographic frequencies or of relationships between properties.
 
-## Files
+## How the study uses it
 
-| File | Used by | Contents |
-| --- | --- | --- |
-| `signatures.parquet` | all experiments | `record_index` plus the six integer codes, in the balanced order below |
-| `query_panels.parquet` | both experiments | The 200-query calibration panel and 400-query evaluation panel, as record indices |
-
-The missingness mask and pairwise pairs that HYP-83 first generated here now live in [`data/missingness`](../missingness/README.md), built from these signatures.
-
-## Balanced nested prefixes
-
-Experiment 1 compares candidate counts N = 100, 1,000, 10,000, 100,000 and 920,000 by taking the first N rows. Rows cycle through the 400 (age, job, region) cells so that every prefix has near-equal counts of each age, job and region, within one of each other. For example, the first 100 rows contain every age band 10 times and every region 20 times. `generate.py` checks the balance for every prefix used.
-
-## Query panels
-
-Both panels balance jobs and regions and cover all ten age bands. **Endpoint ages (bands 1 and 10) make up 40% of each panel.** Only an endpoint-age query has candidates with zero exact similarity: they have the opposite endpoint age, a different job and region, and no shared interests. The calibration panel sets thresholds and the evaluation panel measures them. The two panels share no records.
+- **Nested prefixes.** N = 10,000, 100,000 and 1,000,000 are the first N rows.
+- **Query panel.** The first 100 records are the queries.
+- **Duplicates.** There are four billion possible combinations, so independent sampling produces some duplicate attribute records: 132 in this sequence. They are kept. A query's own `record_id` is the only record excluded from its comparisons.
+- **Overlap shares.** Under these cardinalities a random pair shares no property with probability 0.841, and exactly one with probability 0.151. `settings.json` lists the share for every k.
 
 ## Regenerate
 
@@ -36,4 +28,4 @@ From the repository root:
 uv run --project src/scale --locked python data/scale/generate.py
 ```
 
-Generation is deterministic, with seed string `hyp83-person-v2` and torch generators. The run records the SHA-256 of every Parquet file and refuses to reuse frozen thresholds if any file changes.
+`generate.py` draws each property in turn with `torch.randint` from one generator seeded with the data seed, 101. It writes `records.parquet` and `settings.json`, which records the seed, cardinalities, torch version, pair-overlap shares and duplicate count. The study's `run.py` calls it first, so a full run always starts from these records.

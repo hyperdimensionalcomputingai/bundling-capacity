@@ -1,6 +1,0 @@
-dimension,queries_with_unrelated_candidates,queries_with_false_match,queries_with_false_match_ci_low,queries_with_false_match_ci_high,queries_with_false_match_observed,queries_with_false_match_upper95,queries_with_false_match_reference_t,queries_with_false_match_reference_t_ci_low,queries_with_false_match_reference_t_ci_high,queries_with_false_match_reference_t_observed,queries_with_false_match_reference_t_upper95,queries,top1_changed,top1_changed_ci_low,top1_changed_ci_high
-512,160,0.000000,0.000000,0.000000,0,0.018549,0.000000,0.000000,0.000000,0,0.018549,400,0.000000,0.000000,0.000000
-1024,160,0.000000,0.000000,0.000000,0,0.018549,0.000000,0.000000,0.000000,0,0.018549,400,0.000000,0.000000,0.000000
-2048,160,0.000000,0.000000,0.000000,0,0.018549,0.000000,0.000000,0.000000,0,0.018549,400,0.000000,0.000000,0.000000
-4096,160,0.000000,0.000000,0.000000,0,0.018549,0.000000,0.000000,0.000000,0,0.018549,400,0.000000,0.000000,0.000000
-8192,160,0.000000,0.000000,0.000000,0,0.018549,0.000000,0.000000,0.000000,0,0.018549,400,0.000000,0.000000,0.000000
