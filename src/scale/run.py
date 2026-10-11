@@ -181,7 +181,7 @@ def figure_scores(histograms: pl.DataFrame, summary: pl.DataFrame):
 
 
 def figure_false_matches(summary: pl.DataFrame):
-    """Figure 2: chance of at least one look-alike, for one person and for any two people."""
+    """Figure 2: chance of at least one false positive, for one person and for any two people."""
     order = [dimension_label(d) for d in study.DIMENSIONS]
     rows = []
     for r in summary.iter_rows(named=True):
@@ -262,9 +262,9 @@ def figure_false_matches(summary: pl.DataFrame):
         + scale_y_log10(labels=lambda v: [short_chance(x) for x in v])
         + labs(
             x="records in the dataset",
-            y="chance of at least one look-alike (log scale)",
-            title="One person rarely gets a look-alike; across everyone, some pair soon does",
-            subtitle="A look-alike is an unrelated pair above the one-fact threshold. Lines: binomial "
+            y="chance of at least one false positive (log scale)",
+            title="One person rarely sees a false positive; across everyone, some pair soon does",
+            subtitle="A false positive is an unrelated pair above the one-fact threshold. Lines: binomial "
             "prediction, labelled at 40K records. Circles: measured. Each panel has its own scale.",
         )
         + house_theme()
