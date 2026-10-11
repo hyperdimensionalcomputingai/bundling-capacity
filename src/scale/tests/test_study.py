@@ -1,9 +1,7 @@
 """Focused checks from the methodology's acceptance list. Run before the full study."""
 
 import math
-from fractions import Fraction
 
-import polars as pl
 import pytest
 import torch
 import torchhd
@@ -12,11 +10,7 @@ import study
 from study import Encoder
 
 
-def test_raw_sum_means_are_k_over_five():
-    assert [study.expected_cosine(k) for k in study.GROUPS] == [Fraction(k, 5) for k in range(6)]
-
-
-def test_encoder_binds_each_value_to_its_role_and_sums_five_facts():
+def test_encoder_sums_five_bound_facts_and_facts_stay_unbindable():
     encoder = Encoder.make(512, 11)
     codes = torch.tensor([[3, 1, 42, 199, 7], [0, 9, 0, 0, 999]])
     for record, row in zip(encoder.encode(codes), codes):
@@ -27,11 +21,11 @@ def test_encoder_binds_each_value_to_its_role_and_sums_five_facts():
             ]
         )
         # The raw sum of all five facts, with no sign applied.
-        assert torch.equal(record, torchhd.multiset(facts).as_subclass(torch.Tensor))
-        assert set(record.unique().tolist()) <= {-5.0, -3.0, -1.0, 1.0, 3.0, 5.0}
+        assert torch.equal(record.float(), torchhd.multiset(facts).as_subclass(torch.Tensor))
+        assert set(record.unique().tolist()) <= {-5, -3, -1, 1, 3, 5}
         # Unbinding the employer role recovers the employer value as the best match.
-        assert int((encoder.values[4] @ (record * encoder.roles[4])).argmax()) == int(row[4])
-    # Rebuilding the encoder from the same (D, seed) gives the same vectors.
+        probe = record.float() * encoder.roles[4]
+        assert int((encoder.values[4] @ probe).argmax()) == int(row[4])
     assert torch.equal(encoder.encode(codes), Encoder.make(512, 11).encode(codes))
     assert not torch.equal(encoder.encode(codes), Encoder.make(512, 23).encode(codes))
 
@@ -45,95 +39,52 @@ def test_shared_property_counts_on_hand_built_records():
             [0, 2, 0, 4, 0],  # k = 2
             [1, 2, 3, 0, 0],  # k = 3
             [0, 2, 3, 4, 5],  # k = 4
-            [1, 2, 3, 4, 5],  # k = 5, a duplicate attribute record
+            [1, 2, 3, 4, 5],  # k = 5
             [5, 4, 3, 2, 1],  # k = 1: equal values only count within the same property
         ]
     )
     assert study.shared_counts(query, candidates).tolist() == [[0, 1, 2, 3, 4, 5, 1]]
 
 
-def test_scan_keeps_duplicates_and_excludes_only_the_query_itself():
-    # Records 0 and 1 are identical attribute records; record 2 shares nothing with 0.
-    codes = torch.tensor([[1, 2, 3, 4, 5], [1, 2, 3, 4, 5], [0, 0, 0, 0, 0], [1, 0, 0, 0, 0]])
-    result = study.scan(Encoder.make(512, 11), codes, prefixes=(4,), query_count=2, batch=2)
-    counts = {
-        (row["query_id"], row["k"]): row["count"]
-        for row in result.iter_rows(named=True)
-        if row["count"]
-    }
-    # Each query sees the other identical record at k = 5, never itself.
-    assert counts == {(0, 5): 1, (0, 0): 1, (0, 1): 1, (1, 5): 1, (1, 0): 1, (1, 1): 1}
-    assert result.filter(pl.col("k") == 5)["max"].to_list()[:2] == pytest.approx([1.0, 1.0])
+def test_theory():
+    assert study.expected_cosine(1) == pytest.approx(0.2)
+    assert study.spread(10_000) == pytest.approx(0.01)
+    assert study.threshold(1, 2_048) == pytest.approx(0.2 - 3.0902 / math.sqrt(2_048), abs=1e-4)
+    # The binomial tail falls as the threshold or the dimension rises.
+    assert study.tail_probability(0.1, 2_048) > study.tail_probability(0.13, 2_048)
+    assert study.tail_probability(0.13, 2_048) > study.tail_probability(0.13, 4_096)
 
 
-def test_small_end_to_end_run_matches_brute_force():
+def test_all_pairs_matches_brute_force():
     generator = torch.Generator().manual_seed(5)
-    # Small cardinalities so every k from 0 to 5 occurs among a few hundred records.
+    # Small cardinalities so every k occurs, and a low dimension so false matches occur.
     cardinalities = (2, 2, 3, 3, 4)
     codes = torch.stack(
-        [torch.randint(0, c, (600,), generator=generator) for c in cardinalities], 1
+        [torch.randint(0, c, (300,), generator=generator) for c in cardinalities], 1
     )
-    encoder = Encoder.make(512, 37, cardinalities)
-    prefixes, query_count = (150, 300, 600), 7
-    result = study.scan(encoder, codes, prefixes=prefixes, query_count=query_count, batch=75)
+    encoder = Encoder.make(64, 3, cardinalities)
+    sizes = (100, 300)
+    result, hist = study.all_pairs(encoder, codes, sizes=sizes, tile=50, histogram=True)
 
-    cosine = study.cosines(encoder.encode(codes[:query_count]), encoder.encode(codes))
-    k = study.shared_counts(codes[:query_count], codes)
-    for n in prefixes:
-        rows = result.filter(pl.col("n") == n)
-        for q in range(query_count):
-            for g in study.GROUPS:
-                keep = (k[q, :n] == g) & (torch.arange(n) != q)
-                row = rows.filter((pl.col("query_id") == q) & (pl.col("k") == g)).row(0, named=True)
-                assert row["count"] == int(keep.sum())
-                if keep.any():
-                    scores = cosine[q, :n][keep].double()
-                    assert row["mean"] == pytest.approx(float(scores.mean()), abs=1e-12)
-                    assert row["std"] == pytest.approx(float(scores.std(correction=0)), abs=1e-7)
-                    assert row["max"] == pytest.approx(float(scores.max()))
-                if g == 0:
-                    for name, s in study.exceedance_scores().items():
-                        assert row[f"zero_at_or_above_{name}"] == int((scores >= s).sum())
-        pooled = study.pool(rows, ["dimension", "seed", "n", "k"])
-        for g in study.GROUPS:
-            keep = (k[:, :n] == g) & (
-                torch.arange(n)[None, :] != torch.arange(query_count)[:, None]
-            )
-            row = pooled.filter(pl.col("k") == g).row(0, named=True)
-            assert row["count"] == int(keep.sum())
-            if keep.any():
-                scores = cosine[:, :n][keep].double()
-                assert row["mean"] == pytest.approx(float(scores.mean()), abs=1e-12)
-                assert row["std"] == pytest.approx(float(scores.std(correction=0)), abs=1e-7)
-                assert row["max"] == pytest.approx(float(scores.max()))
-
-
-def test_controlled_pairs_agree_with_theory():
-    """Independent random pairs with exactly k shared facts, at the smallest and a large D."""
-    pairs = 4_000
-    for dimension in (512, 8_192):
-        for k in study.GROUPS:
-            facts = torchhd.random(pairs * (2 * study.FACTS - k), dimension, "MAP").reshape(
-                pairs, 2 * study.FACTS - k, dimension
-            )
-            query = facts[:, : study.FACTS].sum(1)
-            candidate = torch.cat([facts[:, :k], facts[:, study.FACTS :]], 1).sum(1)
-            scores = study.cosines(query, candidate).diagonal()
-            sigma = study.spread(dimension)  # zero-overlap spread; shared facts only narrow it
-            # Five standard errors of the mean; the zero-overlap spread within 10% of 1/sqrt(D).
-            assert abs(float(scores.mean()) - study.MU[k]) <= 5 * sigma / math.sqrt(pairs) + 1e-12
-            assert float(scores.std()) <= sigma * 1.1
-            if k == 0:
-                assert float(scores.std()) == pytest.approx(sigma, rel=0.1)
-
-
-def test_theory_respects_the_discrete_cosine_grid():
-    for dimension in study.DIMENSIONS:
-        for comparisons in (10**4, 10**8):
-            ref = study.maximum_reference(comparisons, dimension)
-            agreeing = dimension * (1 + ref) / 2
-            assert agreeing == pytest.approx(round(agreeing), abs=1e-6)  # attainable
-            assert study.tail_probability(ref, dimension) <= 1 / comparisons
-            below = ref - 2 / dimension  # the next attainable cosine down
-            assert study.tail_probability(below, dimension) > 1 / comparisons
-    assert study.spread(10_000) == pytest.approx(0.01)
+    scores = study.cosines(encoder.encode(codes), encoder.encode(codes))
+    k = study.shared_counts(codes, codes)
+    for n, row in zip(sizes, result.iter_rows(named=True)):
+        upper = torch.triu(torch.ones(n, n, dtype=torch.bool), diagonal=1)
+        s, kk = scores[:n, :n], k[:n, :n]
+        unrelated = upper & (kk == 0)
+        assert row["pairs"] == n * (n - 1) // 2
+        assert row["unrelated_pairs"] == int(unrelated.sum())
+        assert row["highest_unrelated"] == pytest.approx(float(s[unrelated].max()))
+        for q in study.MATCHES:
+            t = study.threshold(q, 64)
+            false = unrelated & (s >= t)
+            assert row[f"false_pairs_{q}"] == int(false.sum())
+            rows, cols = torch.nonzero(false, as_tuple=True)
+            assert row[f"searches_with_false_{q}"] == len(set(rows.tolist()) | set(cols.tolist()))
+            true = upper & (kk >= q)
+            assert row[f"true_pairs_{q}"] == int(true.sum())
+            assert row[f"misses_{q}"] == int((true & (s < t)).sum())
+    assert result["false_pairs_1"].max() > 0  # the low dimension makes the check meaningful
+    assert int(hist["count"].sum()) == int(
+        (torch.triu(torch.ones(300, 300, dtype=torch.bool), 1) & (k <= 2)).sum()
+    )

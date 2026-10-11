@@ -1,5 +1,5 @@
 {
-  "record_count": 1000000,
+  "record_count": 40000,
   "data_seed": 101,
   "properties": {
     "region": 20,
@@ -18,5 +18,5 @@
     3.3125000000000006e-07,
     2.5000000000000007e-10
   ],
-  "duplicate_attribute_records": 132
+  "duplicate_attribute_records": 0
 }

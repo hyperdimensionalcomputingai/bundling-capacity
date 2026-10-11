@@ -5,6 +5,7 @@ description = "Majority-bundled categorical records at scale: cosine by shared-p
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "matplotlib==3.11.1",
+  "plotnine>=0.15.8",
   "polars==1.44.1",
   "pyarrow==25.0.1",
   "scipy==1.18.1",

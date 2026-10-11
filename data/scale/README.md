@@ -1,10 +1,10 @@
 # Synthetic categorical records
 
-`records.parquet` holds **1,000,000 synthetic records**, each with five categorical properties drawn uniformly and independently:
+`records.parquet` holds **40,000 synthetic records**, each with five categorical properties drawn uniformly and independently:
 
 | Column | Values | Type |
 | --- | --- | --- |
-| `record_id` | 0 to 999,999, in sequence order | int32 |
+| `record_id` | 0 to 39,999, in sequence order | int32 |
 | `region` | 20 | int16 code |
 | `education` | 10 | int16 code |
 | `occupation` | 100 | int16 code |
@@ -15,9 +15,8 @@ The property names make the example readable. Codes carry no meaning, and the st
 
 ## How the study uses it
 
-- **Nested prefixes.** N = 10,000, 100,000 and 1,000,000 are the first N rows.
-- **Query panel.** The first 100 records are the queries.
-- **Duplicates.** There are four billion possible combinations, so independent sampling produces some duplicate attribute records: 132 in this sequence. They are kept. A query's own `record_id` is the only record excluded from its comparisons.
+- **Nested populations.** N = 4,000, 13,000 and 40,000 are the first N rows. Every record is compared with every other record in its population once.
+- **Duplicates.** There are four billion possible combinations, so independent sampling can produce duplicate attribute records; they are kept and land in the k = 5 group. `settings.json` gives the count.
 - **Overlap shares.** Under these cardinalities a random pair shares no property with probability 0.841, and exactly one with probability 0.151. `settings.json` lists the share for every k.
 
 ## Regenerate
