@@ -305,9 +305,17 @@ def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
         + geom_col(position=dodge, width=0.75)
         + geom_text(aes(label="label"), position=dodge, va="bottom", size=12, color=INK)
         + facet_wrap("panel", nrow=1, scales="free_y")
-        + scale_fill_manual(values={"predicted": "#b9b6ae", "measured": "#4a3aa7"})
+        + scale_fill_manual(
+            values={"predicted": "#b9b6ae", "measured": "#4a3aa7"},
+            labels={"predicted": "predicted by theory", "measured": "measured"},
+        )
         + scale_y_continuous(expand=(0, 0, 0.15, 0))
-        + labs(x="records", y="", fill="")
+        + labs(
+            x="records",
+            y="",
+            fill="",
+            title=f"Theory vs. measurement: chance of a false positive at {dimension:,} dimensions",
+        )
         + house_theme()
         + theme(
             figure_size=(11.5, 4.4),
@@ -318,6 +326,7 @@ def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
             axis_title_x=element_text(color=MUTED, size=14),
             strip_text=element_text(color=INK, size=16, ha="left"),
             legend_text=element_text(color=INK, size=14),
+            plot_title=element_text(color=INK, size=18, ha="left"),
         )
     )
     save(plot, "figure3_predicted_vs_measured")
