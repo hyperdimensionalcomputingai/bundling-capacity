@@ -327,6 +327,8 @@ def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
             strip_text=element_text(color=INK, size=16, ha="left"),
             legend_text=element_text(color=INK, size=14),
             plot_title=element_text(color=INK, size=18, ha="left"),
+            panel_border=element_rect(color=MUTED, fill=None, linetype="dashed", size=0.8),
+            strip_background=element_rect(color=MUTED, fill=SURFACE, linetype="dashed", size=0.8),
         )
     )
     save(plot, "figure3_predicted_vs_measured")
