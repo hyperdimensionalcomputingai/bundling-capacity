@@ -4,8 +4,8 @@ Each record is a hypervector that bundles five facts. A practitioner compares re
 
 ## The question
 
-- **Searching for one person** ("people similar to Maya"): one record against the other N − 1. The number of comparisons grows with N.
-- **Checking the whole dataset** (deduplication, clustering, a similarity graph): every pair, about N²/2 comparisons. The number grows with N².
+- **Does anyone look like this person?** ("people similar to Maya"): one record against the other N − 1. The number of comparisons grows with N.
+- **Do any two unrelated people look alike?** (recommendations for every user, communities, a distinct codebook): every pair, about N²/2 comparisons, whether computed at once or as each new record is checked on arrival. The number grows with N².
 
 It is the birthday paradox. With 23 people, someone sharing *your* birthday is unlikely (about 6%), but *some* two people sharing one is a coin flip (about 50%). The chance per pair is the same; only the number of pairs changes. The study asks whether this argument, with the binomial model for one pair, predicts what happens to real bundled records, and what it says about 2,048, 4,096 and 8,192 dimensions.
 

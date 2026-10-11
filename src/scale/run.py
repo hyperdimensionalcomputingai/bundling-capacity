@@ -98,7 +98,10 @@ INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 GROUP_COLORS = {"0": "#2a78d6", "1": "#eb6834", "2": "#1baf7a"}
 GROUP_LABELS = {"0": "share nothing", "1": "share 1 property", "2": "share 2 properties"}
 JOB_COLORS = {"search": "#4a3aa7", "dataset": "#e34948"}
-JOB_LABELS = {"search": "searching for one person", "dataset": "checking the whole dataset"}
+JOB_LABELS = {
+    "search": "a stranger looks like one person",
+    "dataset": "any two strangers look alike",
+}
 
 
 def dimension_label(d: int) -> str:
@@ -178,7 +181,7 @@ def figure_scores(histograms: pl.DataFrame, summary: pl.DataFrame):
 
 
 def figure_false_matches(summary: pl.DataFrame):
-    """Figure 2: chance of at least one false match, one search vs the whole dataset."""
+    """Figure 2: chance of at least one look-alike, for one person and for any two people."""
     order = [dimension_label(d) for d in study.DIMENSIONS]
     rows = []
     for r in summary.iter_rows(named=True):
@@ -259,10 +262,10 @@ def figure_false_matches(summary: pl.DataFrame):
         + scale_y_log10(labels=lambda v: [short_chance(x) for x in v])
         + labs(
             x="records in the dataset",
-            y="chance of at least one false match (log scale)",
-            title="One search stays clean; the whole dataset fills up first",
-            subtitle="Lines: binomial prediction, labelled at 40K records. Circles: measured over "
-            "trials. A match shares at least one of five properties. Each panel has its own scale.",
+            y="chance of at least one look-alike (log scale)",
+            title="One person rarely gets a look-alike; across everyone, some pair soon does",
+            subtitle="A look-alike is an unrelated pair above the one-fact threshold. Lines: binomial "
+            "prediction, labelled at 40K records. Circles: measured. Each panel has its own scale.",
         )
         + house_theme()
     )
