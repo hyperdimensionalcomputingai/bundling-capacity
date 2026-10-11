@@ -279,8 +279,8 @@ def figure_false_matches(summary: pl.DataFrame):
 def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
     """Figure 3: predicted and measured chances side by side, one panel per question."""
     panels = {
-        "search": "Someone unrelated looks like one person\n(share of searches)",
-        "dataset": "Any two unrelated people look alike\n(share of runs)",
+        "search": "One person",
+        "dataset": "Any two people",
     }
     rows = []
     for r in summary.filter(pl.col("dimension") == dimension).iter_rows(named=True):
@@ -303,19 +303,22 @@ def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
     plot = (
         ggplot(data.to_pandas(), aes("n", "chance", fill="kind"))
         + geom_col(position=dodge, width=0.75)
-        + geom_text(aes(label="label"), position=dodge, va="bottom", size=8, color=INK)
+        + geom_text(aes(label="label"), position=dodge, va="bottom", size=12, color=INK)
         + facet_wrap("panel", nrow=1, scales="free_y")
         + scale_fill_manual(values={"predicted": "#b9b6ae", "measured": "#4a3aa7"})
-        + scale_y_continuous(labels=lambda v: [bar_label(x) for x in v], expand=(0, 0, 0.12, 0))
-        + labs(
-            x="records in the dataset",
-            y="chance of at least one false positive",
-            title=f"Measured chances track the predictions at {dimension:,} dimensions",
-            subtitle="One-fact matches. Searches: every person's search in every run. "
-            "Runs: 40 independent draws of hypervectors. Each panel has its own scale.",
-        )
+        + scale_y_continuous(expand=(0, 0, 0.15, 0))
+        + labs(x="records", y="", fill="")
         + house_theme()
-        + theme(figure_size=(11, 4.6), panel_spacing_x=0.06)
+        + theme(
+            figure_size=(11.5, 4.4),
+            panel_spacing_x=0.06,
+            panel_grid_major=element_blank(),
+            axis_text_y=element_blank(),
+            axis_text_x=element_text(color=INK, size=14),
+            axis_title_x=element_text(color=MUTED, size=14),
+            strip_text=element_text(color=INK, size=16, ha="left"),
+            legend_text=element_text(color=INK, size=14),
+        )
     )
     save(plot, "figure3_predicted_vs_measured")
 
