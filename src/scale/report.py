@@ -153,10 +153,12 @@ The results describe five independent, uniformly distributed categorical propert
 
 ## Files
 
-All in `results/scale/`: `trials.csv` (one row per dimension, trial and size), `summary.csv` (measured and predicted per dimension and size), `score_histograms.csv`, `figure1_scores.png/.svg`, `figure2_false_matches.png/.svg` and `manifest.json`. Regenerate everything with `sh src/scale/reproduce.sh` from the repository root.
+All in `results/scale/`: `trials.csv` (one row per dimension, trial and size), `summary.csv` (measured and predicted per dimension and size), `score_histograms.csv`, `figure1_scores.png/.svg`, `figure2_false_matches.png/.svg`, `figure3_predicted_vs_measured.png/.svg` and `manifest.json`. Regenerate everything with `sh src/scale/reproduce.sh` from the repository root, or only the figures from the saved CSVs with `uv run --project src/scale --locked python src/scale/run.py --figures-only`.
 
 ![Score histograms](../../results/scale/figure1_scores.png)
 
 ![Look-alikes: one person vs any two people](../../results/scale/figure2_false_matches.png)
+
+![Predicted and measured chances of a false positive at 2,048 dimensions](../../results/scale/figure3_predicted_vs_measured.png)
 """
     REPORT_PATH.write_text(text)

@@ -27,6 +27,7 @@ from plotnine import (
     element_rect,
     element_text,
     facet_wrap,
+    geom_col,
     geom_line,
     geom_point,
     geom_step,
@@ -34,9 +35,12 @@ from plotnine import (
     geom_vline,
     ggplot,
     labs,
+    position_dodge,
     scale_color_manual,
+    scale_fill_manual,
     scale_x_continuous,
     scale_x_log10,
+    scale_y_continuous,
     scale_y_log10,
     theme,
     theme_minimal,
@@ -272,6 +276,79 @@ def figure_false_matches(summary: pl.DataFrame):
     save(plot, "figure2_false_matches")
 
 
+def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
+    """Figure 3: predicted and measured chances side by side, one panel per question."""
+    panels = {
+        "search": "One person",
+        "dataset": "Any two people",
+    }
+    rows = []
+    for r in summary.filter(pl.col("dimension") == dimension).iter_rows(named=True):
+        for job, predicted, measured in (
+            ("search", r["search_chance_1"], r["search_with_false_1"]),
+            ("dataset", r["dataset_chance_1"], r["dataset_with_false_1"]),
+        ):
+            for kind, chance in (("predicted", predicted), ("measured", measured)):
+                rows.append(
+                    {"panel": panels[job], "n": f"{r['n']:,}", "kind": kind, "chance": chance}
+                )
+    sizes = [f"{n:,}" for n in study.SIZES]
+    data = pl.DataFrame(rows).with_columns(
+        pl.col("panel").cast(pl.Enum(list(panels.values()))),
+        pl.col("n").cast(pl.Enum(sizes)),
+        pl.col("kind").cast(pl.Enum(["predicted", "measured"])),
+        pl.col("chance").map_elements(bar_label, return_dtype=pl.Utf8).alias("label"),
+    )
+    dodge = position_dodge(width=0.8)
+    plot = (
+        ggplot(data.to_pandas(), aes("n", "chance", fill="kind"))
+        + geom_col(position=dodge, width=0.75)
+        + geom_text(aes(label="label"), position=dodge, va="bottom", size=12, color=INK)
+        + facet_wrap("panel", nrow=1, scales="free_y")
+        + scale_fill_manual(
+            values={"predicted": "#b9b6ae", "measured": "#4a3aa7"},
+            labels={"predicted": "predicted by theory", "measured": "measured"},
+        )
+        + scale_y_continuous(expand=(0, 0, 0.15, 0))
+        + labs(
+            x="records",
+            y="",
+            fill="",
+            title=f"Theory vs. measurement: chance of a false positive at {dimension:,} dimensions",
+        )
+        + house_theme()
+        + theme(
+            figure_size=(11.5, 4.4),
+            panel_spacing_x=0.06,
+            panel_grid_major=element_blank(),
+            axis_text_y=element_blank(),
+            axis_text_x=element_text(color=INK, size=14),
+            axis_title_x=element_text(color=MUTED, size=14),
+            strip_text=element_text(color=INK, size=16, ha="left"),
+            legend_text=element_text(color=INK, size=14),
+            plot_title=element_text(color=INK, size=18, ha="left"),
+            panel_border=element_rect(color=MUTED, fill=None, linetype="dashed", size=0.8),
+            strip_background=element_rect(color=MUTED, fill=SURFACE, linetype="dashed", size=0.8),
+        )
+    )
+    save(plot, "figure3_predicted_vs_measured")
+
+
+def bar_label(x: float) -> str:
+    """A chance as a percentage to two significant figures, so tiny values stay readable."""
+    if x == 0:
+        return "0%"
+    return f"{x * 100:.2g}%"
+
+
+def figures_only():
+    """Redraw every figure from the saved CSVs, without rerunning the trials."""
+    summary = pl.read_csv(study.OUT / "summary.csv")
+    figure_scores(pl.read_csv(study.OUT / "score_histograms.csv"), summary)
+    figure_false_matches(summary)
+    figure_predicted_vs_measured(summary)
+
+
 def short_chance(x: float) -> str:
     """A probability as a percentage, or as a power of ten once it is tiny."""
     if x >= 0.01:
@@ -328,6 +405,7 @@ def main():
 
     figure_scores(histograms, summary)
     figure_false_matches(summary)
+    figure_predicted_vs_measured(summary)
 
     timings["total_s"] = round(time.perf_counter() - started, 1)
     manifest = {
@@ -353,4 +431,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    figures_only() if "--figures-only" in sys.argv else main()
