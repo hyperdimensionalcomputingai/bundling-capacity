@@ -12,7 +12,7 @@ These hold for five uniformly drawn categorical properties, raw-sum bundling and
 
 1. **A shared fact is worth 1/5 of the score.** A pair sharing q of 5 properties averages q/5, at any dimension.
 2. **Ask which question you are asking.** "Does anyone look like this person?" makes N comparisons; "do any two unrelated people look alike?" (recommendations for every user, communities) makes about N²/2, at once or one arrival at a time. The chance per comparison is the same, so the second question runs out first: the birthday paradox.
-3. **At 2,048 dimensions, one-fact matches are fine for one person's search but not for questions about everyone.** With 40,000 records, a stranger looks like any one person about 4 times in 100,000, while the dataset holds at least one look-alike pair in about half the trials. Both match the binomial prediction.
+3. **At 2,048 dimensions, one-fact matches are fine for one person's search but not for questions about everyone.** With 40,000 records, someone unrelated looks like any one person about 4 times in 100,000, while the dataset holds at least one look-alike pair in about half the trials. Both match the binomial prediction.
 4. **4,096 or 8,192 dimensions, or two-fact matches, make chance collisions astronomically rare.** No false match occurred at 4,096 or 8,192, or for two-fact matches at any dimension, as predicted.
 5. **Size on paper first.** Expected false matches = comparisons × p(T), with p(T) from the binomial model, predicted every measured setting.
 

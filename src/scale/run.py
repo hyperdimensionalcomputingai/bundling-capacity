@@ -99,8 +99,8 @@ GROUP_COLORS = {"0": "#2a78d6", "1": "#eb6834", "2": "#1baf7a"}
 GROUP_LABELS = {"0": "share nothing", "1": "share 1 property", "2": "share 2 properties"}
 JOB_COLORS = {"search": "#4a3aa7", "dataset": "#e34948"}
 JOB_LABELS = {
-    "search": "a stranger looks like one person",
-    "dataset": "any two strangers look alike",
+    "search": "someone unrelated looks like one person",
+    "dataset": "any two unrelated people look alike",
 }
 
 
