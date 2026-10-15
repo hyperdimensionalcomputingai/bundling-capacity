@@ -157,7 +157,7 @@ All in `results/scale/`: `trials.csv` (one row per dimension, trial and size), `
 
 ![Score histograms](../../results/scale/figure1_scores.png)
 
-![Look-alikes: one person vs any two people](../../results/scale/figure2_false_matches.png)
+![Chance of a false positive at 2,048 dimensions: one person vs any two people](../../results/scale/figure2_false_matches.png)
 
 ![Predicted and measured chances of a false positive at 2,048 dimensions](../../results/scale/figure3_predicted_vs_measured.png)
 """
