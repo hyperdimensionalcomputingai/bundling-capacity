@@ -100,7 +100,7 @@ def summarize(trials: pl.DataFrame) -> pl.DataFrame:
 
 INK, MUTED, GRID, SURFACE = "#0b0b0b", "#52514e", "#e4e3df", "#fcfcfb"
 GROUP_COLORS = {"0": "#2a78d6", "1": "#eb6834", "2": "#1baf7a"}
-GROUP_LABELS = {"0": "share nothing", "1": "share 1 property", "2": "share 2 properties"}
+GROUP_LABELS = {"0": "share nothing", "1": "share 1 fact", "2": "share 2 facts"}
 JOB_COLORS = {"search": "#4a3aa7", "dataset": "#e34948"}
 JOB_LABELS = {
     "search": "someone unrelated looks like one person",
@@ -109,50 +109,65 @@ JOB_LABELS = {
 
 
 def dimension_label(d: int) -> str:
-    return f"{d:,} dimensions ({d // 1024} KB per hypervector)"
+    return f"{d:,} dimensions ({d // 1024} KB)"
+
+
+# Figures are drawn at roughly the width of the article column, so their text stays legible
+# when a phone shrinks them to fit. Panels stack vertically instead of sitting side by side.
+COLUMN_WIDTH = 4.8
 
 
 def house_theme():
-    return theme_minimal(base_size=11) + theme(
-        figure_size=(12.5, 4.4),
+    return theme_minimal(base_size=13) + theme(
+        figure_size=(COLUMN_WIDTH, 4.2),
         plot_background=element_rect(fill="white", color="white"),
         panel_background=element_rect(fill=SURFACE, color=SURFACE),
         panel_grid_major=element_line(color=GRID, size=0.5),
         panel_grid_minor=element_blank(),
-        strip_text=element_text(color=INK, size=11, ha="left"),
-        axis_title=element_text(color=MUTED, size=10),
-        axis_text=element_text(color=MUTED, size=9),
-        plot_title=element_text(color=INK, size=13, ha="left"),
-        plot_subtitle=element_text(color=MUTED, size=10, ha="left"),
-        legend_position="bottom",
+        strip_text=element_text(color=INK, size=14, ha="left"),
+        axis_title=element_text(color=MUTED, size=13),
+        axis_text=element_text(color=MUTED, size=13),
+        legend_position="top",
         legend_title=element_blank(),
-        legend_text=element_text(color=INK, size=10),
-        panel_spacing_x=0.03,
+        legend_text=element_text(color=INK, size=13),
+        panel_spacing_y=0.04,
     )
 
 
+def count_label(x: float) -> str:
+    """A pair count in short form: 100, 100K, 100M."""
+    for size, suffix in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if x >= size:
+            return f"{x / size:,.0f}{suffix}"
+    return f"{x:,.0f}"
+
+
 def figure_scores(histograms: pl.DataFrame, summary: pl.DataFrame):
-    """Figure 1: how scores spread for each overlap group, with both thresholds marked."""
+    """Figure 1: how scores spread for each overlap group, one dimension per row."""
     largest = max(study.SIZES)
+    order = [dimension_label(d) for d in study.DIMENSIONS]
     data = histograms.filter(pl.col("count") > 0).with_columns(
         pl.col("k").cast(pl.Utf8),
-        pl.col("dimension").map_elements(dimension_label, return_dtype=pl.Utf8).alias("panel"),
+        pl.col("dimension")
+        .map_elements(dimension_label, return_dtype=pl.Utf8)
+        .cast(pl.Enum(order))
+        .alias("panel"),
     )
     lines = (
         summary.filter(pl.col("n") == largest)
         .select("dimension", "threshold_1", "threshold_2")
         .unpivot(index="dimension", variable_name="which", value_name="t")
         .with_columns(
-            pl.col("dimension").map_elements(dimension_label, return_dtype=pl.Utf8).alias("panel"),
+            pl.col("dimension")
+            .map_elements(dimension_label, return_dtype=pl.Utf8)
+            .cast(pl.Enum(order))
+            .alias("panel"),
             pl.when(pl.col("which") == "threshold_1")
             .then(pl.lit("1-fact\nthreshold"))
             .otherwise(pl.lit("2-fact\nthreshold"))
             .alias("label"),
         )
     )
-    order = [dimension_label(d) for d in study.DIMENSIONS]
-    data = data.with_columns(pl.col("panel").cast(pl.Enum(order)))
-    lines = lines.with_columns(pl.col("panel").cast(pl.Enum(order)))
     plot = (
         ggplot(data.to_pandas(), aes("score", "count", color="k"))
         + geom_step(size=0.9)
@@ -160,124 +175,85 @@ def figure_scores(histograms: pl.DataFrame, summary: pl.DataFrame):
             aes(xintercept="t"), data=lines.to_pandas(), color=INK, linetype="dashed", size=0.5
         )
         + geom_text(
-            aes(x="t", y=3e7, label="label"),
+            aes(x="t", y=1e9, label="label"),
             data=lines.to_pandas(),
             color=INK,
-            size=8,
+            size=12,
             ha="left",
-            nudge_x=0.012,
+            va="top",
+            nudge_x=0.01,
             inherit_aes=False,
         )
-        + facet_wrap("panel", nrow=1)
+        + facet_wrap("panel", ncol=1)
         + scale_color_manual(values=GROUP_COLORS, labels=GROUP_LABELS)
-        + scale_y_log10(labels=lambda v: [f"{x:,.0f}" for x in v])
-        + scale_x_continuous(limits=(-0.25, 0.6), breaks=[-0.2, 0, 0.2, 0.4, 0.6])
-        + labs(
-            x="cosine similarity",
-            y="pairs (log scale)",
-            title="Unrelated pairs pile up near zero; the gap to the thresholds widens with dimension",
-            subtitle=f"Every pair among {largest:,} records, first trial at each dimension. "
-            "Thresholds keep about 99.9% of true matches.",
+        + scale_y_log10(
+            breaks=[1e2, 1e5, 1e8], labels=lambda v: [count_label(x) for x in v], limits=(5, 2e9)
         )
+        + scale_x_continuous(limits=(-0.15, 0.55), breaks=[0, 0.2, 0.4])
+        + labs(x="cosine similarity", y="pairs (log scale)")
         + house_theme()
+        + theme(figure_size=(COLUMN_WIDTH, 7.4), legend_text=element_text(color=INK, size=12))
     )
     save(plot, "figure1_scores")
 
 
-def figure_false_matches(summary: pl.DataFrame):
-    """Figure 2: chance of at least one look-alike, for one person and for any two people."""
-    order = [dimension_label(d) for d in study.DIMENSIONS]
+def percent_label(x: float) -> str:
+    """A chance as a percentage to two significant figures, so tiny values stay readable."""
+    if x >= 0.1:
+        return f"{x * 100:.0f}%"
+    return f"{x * 100:.2g}%"
+
+
+def figure_false_matches(summary: pl.DataFrame, dimension: int = 2_048):
+    """Figure 2: chance of at least one false positive, for one person and for any two people."""
     rows = []
-    for r in summary.iter_rows(named=True):
-        panel = dimension_label(r["dimension"])
-        rows += [
-            {
-                "panel": panel,
-                "n": r["n"],
-                "job": "search",
-                "kind": "predicted",
-                "chance": r["search_chance_1"],
-            },
-            {
-                "panel": panel,
-                "n": r["n"],
-                "job": "dataset",
-                "kind": "predicted",
-                "chance": r["dataset_chance_1"],
-            },
-            {
-                "panel": panel,
-                "n": r["n"],
-                "job": "search",
-                "kind": "measured",
-                "chance": r["search_with_false_1"],
-                "trials": r["trials"],
-            },
-            {
-                "panel": panel,
-                "n": r["n"],
-                "job": "dataset",
-                "kind": "measured",
-                "chance": r["dataset_with_false_1"],
-                "trials": r["trials"],
-            },
-        ]
-    data = pl.DataFrame(rows).with_columns(pl.col("panel").cast(pl.Enum(order)))
+    for r in summary.filter(pl.col("dimension") == dimension).iter_rows(named=True):
+        for job in ("search", "dataset"):
+            rows += [
+                {"n": r["n"], "job": job, "kind": "predicted", "chance": r[f"{job}_chance_1"]},
+                {"n": r["n"], "job": job, "kind": "measured", "chance": r[f"{job}_with_false_1"]},
+            ]
+    data = pl.DataFrame(rows)
     predicted = data.filter(pl.col("kind") == "predicted").to_pandas()
     measured = data.filter((pl.col("kind") == "measured") & (pl.col("chance") > 0)).to_pandas()
     largest = max(study.SIZES)
     ends = predicted[predicted["n"] == largest].copy()
-    ends["label"] = ends["chance"].map(short_chance)
-    none_seen = (
-        summary.filter((pl.col("n") == largest) & (pl.col("dataset_with_false_1") == 0))
+    ends["label"] = ends["chance"].map(percent_label)
+    # Name each line in the empty band between them, at the middle dataset, instead of a legend.
+    middle = sorted(study.SIZES)[1]
+    names = (
+        pl.DataFrame({"job": ["dataset", "search"], "label": ["any two people", "one person"]})
+        .join(data.filter((pl.col("kind") == "predicted") & (pl.col("n") == middle)), on="job")
         .with_columns(
-            pl.col("dimension")
-            .map_elements(dimension_label, return_dtype=pl.Utf8)
-            .cast(pl.Enum(order))
-            .alias("panel"),
-            pl.format("none seen in\n{} trials", pl.col("trials")).alias("label"),
-            (pl.col("dataset_chance_1") / 8).alias("y"),
+            pl.when(pl.col("job") == "dataset")
+            .then(pl.col("chance") / 10**0.9)
+            .otherwise(pl.col("chance") * 10**0.9)
+            .alias("chance")
         )
-        .to_pandas()
     )
     plot = (
         ggplot(predicted, aes("n", "chance", color="job"))
-        + geom_line(size=1)
-        + geom_point(data=measured, size=3.2, fill="white", stroke=1.2, shape="o")
-        + geom_text(
-            aes(label="label"), data=ends, size=9, ha="left", nudge_x=0.06, show_legend=False
-        )
-        + geom_text(
-            aes(x=largest * 1.12, y="y", label="label"),
-            data=none_seen,
-            color=MUTED,
-            size=8,
-            ha="left",
-            va="top",
-            inherit_aes=False,
-        )
-        + facet_wrap("panel", nrow=1, scales="free_y")
-        + scale_color_manual(values=JOB_COLORS, labels=JOB_LABELS)
+        + geom_line(size=1.1)
+        + geom_point(data=measured, size=3.4, fill="white", stroke=1.3, shape="o")
+        + geom_text(aes(label="label"), data=ends, size=13, ha="left", nudge_x=0.07)
+        + geom_text(aes(label="label"), data=names.to_pandas(), size=14, ha="center", va="center")
+        + scale_color_manual(values=JOB_COLORS, guide=None)
         + scale_x_log10(
             breaks=list(study.SIZES),
-            labels=lambda v: [f"{x / 1000:,.0f}K" for x in v],
-            limits=(min(study.SIZES) / 1.15, largest * 2.4),
+            labels=lambda v: [f"{x:,.0f}" for x in v],
+            limits=(min(study.SIZES) / 1.15, largest * 2.6),
         )
-        + scale_y_log10(labels=lambda v: [short_chance(x) for x in v])
-        + labs(
-            x="records in the dataset",
-            y="chance of at least one look-alike (log scale)",
-            title="One person rarely gets a look-alike; across everyone, some pair soon does",
-            subtitle="A look-alike is an unrelated pair above the one-fact threshold. Lines: binomial "
-            "prediction, labelled at 40K records. Circles: measured. Each panel has its own scale.",
+        + scale_y_log10(
+            breaks=[1e-6, 1e-4, 1e-2, 1], labels=lambda v: [percent_label(x) for x in v]
         )
+        + labs(x="records in the dataset", y="chance of at least one false positive")
         + house_theme()
     )
     save(plot, "figure2_false_matches")
 
 
 def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
-    """Figure 3: predicted and measured chances side by side, one panel per question."""
+    """Figure 3: predicted and measured chances, one panel per question, stacked."""
     panels = {
         "search": "One person",
         "dataset": "Any two people",
@@ -303,30 +279,21 @@ def figure_predicted_vs_measured(summary: pl.DataFrame, dimension: int = 2_048):
     plot = (
         ggplot(data.to_pandas(), aes("n", "chance", fill="kind"))
         + geom_col(position=dodge, width=0.75)
-        + geom_text(aes(label="label"), position=dodge, va="bottom", size=12, color=INK)
-        + facet_wrap("panel", nrow=1, scales="free_y")
+        + geom_text(aes(label="label"), position=dodge, va="bottom", size=11, color=INK)
+        + facet_wrap("panel", ncol=1, scales="free_y")
         + scale_fill_manual(
             values={"predicted": "#b9b6ae", "measured": "#4a3aa7"},
             labels={"predicted": "predicted by theory", "measured": "measured"},
         )
-        + scale_y_continuous(expand=(0, 0, 0.15, 0))
-        + labs(
-            x="records",
-            y="",
-            fill="",
-            title=f"Theory vs. measurement: chance of a false positive at {dimension:,} dimensions",
-        )
+        + scale_y_continuous(expand=(0, 0, 0.2, 0))
+        + labs(x="records", y="", fill="")
         + house_theme()
         + theme(
-            figure_size=(11.5, 4.4),
-            panel_spacing_x=0.06,
+            figure_size=(COLUMN_WIDTH, 6.4),
+            panel_spacing_y=0.06,
             panel_grid_major=element_blank(),
             axis_text_y=element_blank(),
-            axis_text_x=element_text(color=INK, size=14),
-            axis_title_x=element_text(color=MUTED, size=14),
-            strip_text=element_text(color=INK, size=16, ha="left"),
-            legend_text=element_text(color=INK, size=14),
-            plot_title=element_text(color=INK, size=18, ha="left"),
+            axis_text_x=element_text(color=INK, size=13),
             panel_border=element_rect(color=MUTED, fill=None, linetype="dashed", size=0.8),
             strip_background=element_rect(color=MUTED, fill=SURFACE, linetype="dashed", size=0.8),
         )
